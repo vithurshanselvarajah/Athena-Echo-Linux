@@ -67,6 +67,8 @@ The journal is volatile and capped at 24 MiB to reduce eMMC writes. APT lists an
 
 ## CI and releases
 
+The Kernel LTS update workflow checks kernel.org weekly and opens a pull request on a `kernel-x.y.z` branch when a newer active LTS release is available. It updates the source version and SHA-256 pin, then dispatches CI and image builds for review.
+
 Pull requests run shell and Python checks, boot-image packer unit tests, repository secret and configuration scans, and CodeQL analysis of C/C++, Python, and GitHub Actions workflows. Changes to kernel or image inputs also compile the kernel and build the Debian arm64 filesystem concurrently on separate native arm64 runners, then inspect the filesystem, scan installed packages for vulnerabilities, and generate a CycloneDX SBOM. Non-release image builds retain the vulnerability report and SBOM as workflow artifacts. Weekly builds refresh Debian packages and the vulnerability database. Dependabot checks GitHub Actions and the pinned build and scanner images.
 
 Pushing a version tag such as `v1.0.0` runs the same build and scan gates, then publishes the boot image, system image, matching kernel source archive, kernel configuration, checksums, vulnerability report and SBOM as a GitHub release. A tag build fails when the image has fixable High or Critical package vulnerabilities; findings without a Debian fix remain in the attached report. The release job also creates signed provenance attestations. Enable immutable releases in the repository settings to prevent published release assets from being replaced. CI validates image contents but cannot test physical screen, touch, camera, audio or recovery behavior; those still need an Echo device.

@@ -20,7 +20,7 @@ jobs:
       - name: Check script syntax
         run: |
           bash -n build.sh build-in-docker.sh build-debian-image.sh image/debian-arm64/mkrootfs.sh
-          python3 -m py_compile install-athena.py pack.py check-boot.py check-source.py mkfwcpio.py dsp_slot.py patches/*.py
+          python3 -m py_compile install-athena.py pack.py check-boot.py check-source.py mkfwcpio.py dsp_slot.py ci/update_kernel_lts.py patches/*.py
           python3 -m unittest discover -s tests -v
           git diff --check
           sudo_rules=$(grep -R -h -E 'NOPASSWD:[[:space:]]*ALL' image || true)
