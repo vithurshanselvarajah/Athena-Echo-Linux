@@ -14,7 +14,7 @@ while [ $# -gt 0 ]; do
 done
 [ -n "$OUT" ] || { echo "usage: mkbringup.sh -o system.img [-w work] [-s 2048M]" >&2; exit 1; }
 [ "$(dpkg --print-architecture)" = arm64 ] || { echo "mkbringup: run inside an arm64 container" >&2; exit 1; }
-ROOT=/tmp/athena-bringup-rootfs
+ROOT=/tmp/athena-rootfs
 rm -rf "$ROOT" "$WORK/debootstrap.log"
 mkdir -p "$ROOT" "$WORK"
 export DEBIAN_FRONTEND=noninteractive
@@ -42,7 +42,7 @@ exit 101
 POLICY
 chmod 755 "$ROOT/usr/sbin/policy-rc.d"
 cp /etc/resolv.conf "$ROOT/etc/resolv.conf"
-pkgs=$(sed 's/#.*//' /src/image/debian-arm64/packages.txt | xargs)
+pkgs=$(sed 's/#.*//' /src/image/debian-arm64/desktop/phosh/packages.txt | xargs)
 say "Refreshing package indexes inside the arm64 root"
 chroot "$ROOT" apt-get update
 say "Installing Phosh, Tauri runtime, hardware and network packages"
@@ -53,15 +53,12 @@ rm -rf "$ROOT/var/lib/apt/lists" "$ROOT/var/cache/apt/archives"/* "$ROOT/var/cac
 find "$ROOT/usr/share/doc" -mindepth 1 -type f ! -name copyright -delete
 find "$ROOT/usr/share/doc" -depth -type d -empty -delete
 
-# One unprivileged desktop account, with passwordless sudo for the serial bring-up console.
 for group in seat video render input audio; do chroot "$ROOT" groupadd --system "$group" 2>/dev/null || true; done
-chroot "$ROOT" useradd --create-home --uid 1000 --shell /bin/bash bringup
-chroot "$ROOT" usermod -a -G video,render,input,seat,audio bringup
-printf 'bringup ALL=(ALL:ALL) NOPASSWD: ALL\n' > "$ROOT/etc/sudoers.d/bringup"
-chmod 440 "$ROOT/etc/sudoers.d/bringup"
-chroot "$ROOT" passwd -l bringup >/dev/null
+chroot "$ROOT" useradd --create-home --uid 1000 --shell /bin/bash athena
+chroot "$ROOT" usermod -a -G video,render,input,seat,audio athena
+chroot "$ROOT" passwd -l athena >/dev/null
 chroot "$ROOT" passwd -l root >/dev/null
-echo athena-bringup > "$ROOT/etc/hostname"
+echo athena > "$ROOT/etc/hostname"
 rm -f "$ROOT/etc/resolv.conf"
 ln -s /run/systemd/resolve/stub-resolv.conf "$ROOT/etc/resolv.conf"
 
@@ -80,7 +77,6 @@ RuntimeMaxUse=24M
 RuntimeKeepFree=16M
 JOURNAL
 
-# LK passes init=/init. Mount the early virtual filesystems, then hand PID 1 to Debian systemd.
 say "Writing first-boot init, Phosh display configuration and serial-console setup"
 cat > "$ROOT/init" <<'INIT'
 #!/bin/sh
@@ -95,8 +91,11 @@ INIT
 chmod 755 "$ROOT/init"
 mkdir -p "$ROOT/proc" "$ROOT/sys" "$ROOT/dev/pts" "$ROOT/run" "$ROOT/var/log"
 install -d -m 0755 "$ROOT/etc/phosh" "$ROOT/usr/local/sbin" \
+	"$ROOT/usr/share/applications" \
 	"$ROOT/etc/udev/rules.d" \
 	"$ROOT/etc/triggerhappy/triggers.d" \
+	"$ROOT/etc/dconf/profile" "$ROOT/etc/dconf/db/local.d" \
+	"$ROOT/etc/systemd/system/athena-root-grow.service.d" \
 	"$ROOT/etc/systemd/system/phosh.service.d" \
 	"$ROOT/etc/systemd/system/serial-getty@ttyS0.service.d" \
 	"$ROOT/etc/systemd/system/serial-getty@ttyGS0.service.d"
@@ -112,6 +111,132 @@ xwayland=false
 [output:DSI-1]
 rotate=270
 PHOC
+
+cat > "$ROOT/etc/dconf/profile/user" <<'PROFILE'
+user-db:user
+system-db:local
+PROFILE
+cat > "$ROOT/etc/dconf/db/local.d/20-athena" <<'DCONF'
+[org/gnome/desktop/session]
+idle-delay=uint32 300
+
+[org/gnome/desktop/screensaver]
+lock-enabled=false
+DCONF
+
+cat > "$ROOT/usr/local/sbin/athena-set-identity" <<'IDENTITY'
+#!/bin/sh
+set -eu
+serial=$(sed -n 's/.*androidboot.serialno=\([^ ]*\).*/\1/p' /proc/cmdline | head -n 1)
+if [ -z "$serial" ]; then
+	serial=$(tr -d '\000' </proc/device-tree/serial-number 2>/dev/null || true)
+fi
+serial=$(printf '%s' "$serial" | tr '[:upper:]' '[:lower:]' | tr -cd 'a-z0-9-')
+if [ -z "$serial" ]; then
+	hostname=athena-unknown
+else
+	hostname="athena-$serial"
+fi
+printf '%s\n' "$hostname" >/etc/hostname
+hostname "$hostname"
+IDENTITY
+chmod 755 "$ROOT/usr/local/sbin/athena-set-identity"
+cat > "$ROOT/etc/systemd/system/athena-set-identity.service" <<'UNIT'
+[Unit]
+Description=Set Athena hostname from device serial
+DefaultDependencies=no
+After=local-fs.target
+Before=network-pre.target
+Wants=network-pre.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/athena-set-identity
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
+UNIT
+
+cat > "$ROOT/usr/local/sbin/athena-root-grow" <<'GROW'
+#!/bin/sh
+set -eu
+marker=/var/lib/athena/root-expanded
+[ -e "$marker" ] && exit 0
+fstype=$(findmnt -n -o FSTYPE /)
+[ "$fstype" = ext4 ] || { echo "root filesystem is $fstype, expected ext4" >&2; exit 1; }
+device=$(findfs LABEL=athena-rootfs)
+[ -b "$device" ] || { echo 'athena-rootfs label did not resolve to a block device' >&2; exit 1; }
+resize2fs "$device"
+install -D -m 0644 /dev/null "$marker"
+GROW
+chmod 755 "$ROOT/usr/local/sbin/athena-root-grow"
+cat > "$ROOT/etc/systemd/system/athena-root-grow.service" <<'UNIT'
+[Unit]
+Description=Expand Athena ext4 root filesystem on first boot
+After=local-fs.target
+Before=phosh.service
+ConditionPathExists=!/var/lib/athena/root-expanded
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/athena-root-grow
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
+UNIT
+
+cat > "$ROOT/usr/local/sbin/athena-power-action" <<'POWER'
+#!/bin/sh
+set -eu
+case "${1:-}" in
+	poweroff) exec systemctl poweroff ;;
+	reboot) exec systemctl reboot ;;
+	recovery)
+		device=$(findfs PARTLABEL=misc 2>/dev/null || findfs LABEL=misc 2>/dev/null || true)
+		[ -b "$device" ] || { echo 'misc partition not found' >&2; exit 1; }
+		python3 - "$device" <<'PY'
+import os
+import sys
+
+device = sys.argv[1]
+command = b"boot-recovery".ljust(32, b"\0")
+with open(device, "r+b", buffering=0) as block:
+    block.write(command)
+    os.fsync(block.fileno())
+with open(device, "rb", buffering=0) as block:
+    if block.read(32) != command:
+        raise SystemExit("recovery request read-back failed")
+PY
+	exec systemctl reboot ;;
+	*) echo 'usage: athena-power-action poweroff|reboot|recovery' >&2; exit 2 ;;
+esac
+POWER
+chmod 755 "$ROOT/usr/local/sbin/athena-power-action"
+cat > "$ROOT/etc/sudoers.d/athena-actions" <<'SUDOERS'
+athena ALL=(root) NOPASSWD: /usr/local/sbin/athena-volume-key up, /usr/local/sbin/athena-volume-key down, /usr/local/sbin/athena-power-action poweroff, /usr/local/sbin/athena-power-action reboot, /usr/local/sbin/athena-power-action recovery
+SUDOERS
+chmod 440 "$ROOT/etc/sudoers.d/athena-actions"
+cat > "$ROOT/usr/share/applications/athena-recovery.desktop" <<'DESKTOP'
+[Desktop Entry]
+Name=Reboot to TWRP
+Exec=sudo -n /usr/local/sbin/athena-power-action recovery
+Icon=system-reboot
+Terminal=false
+Type=Application
+Categories=System;
+DESKTOP
+cat > "$ROOT/usr/share/applications/athena-poweroff.desktop" <<'DESKTOP'
+[Desktop Entry]
+Name=Power Off
+Exec=sudo -n /usr/local/sbin/athena-power-action poweroff
+Icon=system-shutdown
+Terminal=false
+Type=Application
+Categories=System;
+DESKTOP
+chroot "$ROOT" dconf update
 
 # Configure Athena speaker playback and the four-channel microphone capture path.
 cat > "$ROOT/usr/local/sbin/athena-audio-init" <<'AUDIOINIT'
@@ -178,10 +303,6 @@ amixer -q -c 0 cset name="$control" "$value,$value"
 VOLUMEKEY
 chmod 755 "$ROOT/usr/local/sbin/athena-volume-key"
 install -d -m 0755 "$ROOT/etc/sudoers.d"
-cat > "$ROOT/etc/sudoers.d/athena-volume-key" <<'SUDOERS'
-nobody ALL=(root) NOPASSWD: /usr/local/sbin/athena-volume-key up, /usr/local/sbin/athena-volume-key down
-SUDOERS
-chmod 440 "$ROOT/etc/sudoers.d/athena-volume-key"
 cat > "$ROOT/etc/triggerhappy/triggers.d/athena-volume.conf" <<'TRIGGERS'
 KEY_VOLUMEUP 1 /usr/bin/sudo -n /usr/local/sbin/athena-volume-key up
 KEY_VOLUMEDOWN 1 /usr/bin/sudo -n /usr/local/sbin/athena-volume-key down
@@ -252,7 +373,7 @@ UNIT
 cat > "$ROOT/etc/systemd/system/serial-getty@ttyS0.service.d/autologin.conf" <<'GETTY'
 [Service]
 ExecStart=
-ExecStart=-/sbin/agetty --autologin bringup --keep-baud 921600 ttyS0 vt100
+ExecStart=-/sbin/agetty --autologin athena --keep-baud 921600 ttyS0 vt100
 GETTY
 cat > "$ROOT/etc/systemd/system/serial-getty@ttyGS0.service.d/usb-console.conf" <<'GETTY'
 [Unit]
@@ -261,9 +382,9 @@ After=athena-usb-console.service
 
 [Service]
 ExecStart=
-ExecStart=-/sbin/agetty --autologin bringup --keep-baud 115200 ttyGS0 vt100
+ExecStart=-/sbin/agetty --autologin athena --keep-baud 115200 ttyGS0 vt100
 GETTY
-chroot "$ROOT" systemctl --no-reload --root=/ enable graphical.target phosh.service seatd.service systemd-resolved.service systemd-timesyncd.service NetworkManager.service bluetooth.service athena-audio-init.service triggerhappy.service athena-usb-console.service sys-kernel-config.mount serial-getty@ttyS0.service serial-getty@ttyGS0.service
+chroot "$ROOT" systemctl --no-reload --root=/ enable graphical.target phosh.service seatd.service systemd-resolved.service systemd-timesyncd.service NetworkManager.service bluetooth.service athena-audio-init.service triggerhappy.service athena-usb-console.service sys-kernel-config.mount serial-getty@ttyS0.service serial-getty@ttyGS0.service athena-set-identity.service athena-root-grow.service
 chroot "$ROOT" systemctl --no-reload --root=/ disable getty@tty1.service
 chroot "$ROOT" systemctl --no-reload --root=/ set-default graphical.target
 rm -f "$ROOT/etc/machine-id"

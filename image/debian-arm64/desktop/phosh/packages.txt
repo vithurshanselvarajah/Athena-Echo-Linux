@@ -29,3 +29,5 @@ udev
 wireless-regdb
 wpasupplicant
 xdg-utils
+
+dconf-service
