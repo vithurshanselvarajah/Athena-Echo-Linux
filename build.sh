@@ -346,7 +346,7 @@ else
 
 	fetch "$KURL" "$CACHE/linux-$KVER.tar.xz" "$KSHA256"
 
-	esc() { printf '%s' "$1" | sed 's/[][.*^$+?(){}|]/\\&/g'; }
+	esc() { printf '%s' "$1" | sed 's/[][\\.^$*+?(){}|]/\\&/g'; }
 
 	pat="/home/|relbuild|$(esc "$WORK")|$(esc "$KTREE")"
 
