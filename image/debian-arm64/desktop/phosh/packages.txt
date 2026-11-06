@@ -6,6 +6,7 @@ e2fsprogs
 foot
 gnome-session-bin
 gnome-session-common
+kbd
 libasound2t64
 libdrm2
 libegl1

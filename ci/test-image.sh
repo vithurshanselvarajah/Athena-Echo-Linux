@@ -64,14 +64,18 @@ test -f "$rootfs/etc/phosh/phoc.ini"
 grep -q '^rotate=270$' "$rootfs/etc/phosh/phoc.ini"
 grep -q '^idle-delay=uint32 300$' "$rootfs/etc/dconf/db/local.d/20-athena"
 grep -q '^HandlePowerKey=ignore$' "$rootfs/etc/systemd/logind.conf.d/athena.conf"
+test -x "$rootfs/usr/bin/chvt"
+grep -q '^ExecStartPost=+chvt 7$' "$rootfs/usr/lib/systemd/system/phosh.service"
 test -f "$rootfs/usr/share/applications/athena-recovery.desktop"
 test -f "$rootfs/usr/share/applications/athena-poweroff.desktop"
 test -f "$rootfs/etc/triggerhappy/triggers.d/athena-volume.conf"
+grep -qx 'athena ALL=(ALL:ALL) NOPASSWD: ALL' "$rootfs/etc/sudoers.d/athena-admin"
 grep -q 'PARTLABEL=misc' "$rootfs/usr/local/sbin/athena-power-action"
 
 dpkg-query --admindir="$rootfs/var/lib/dpkg" -W -f='${db:Status-Status}\n' phosh | grep -qx installed
 dpkg-query --admindir="$rootfs/var/lib/dpkg" -W -f='${db:Status-Status}\n' phosh-mobile-settings | grep -qx installed
 dpkg-query --admindir="$rootfs/var/lib/dpkg" -W -f='${db:Status-Status}\n' squeekboard | grep -qx installed
+dpkg-query --admindir="$rootfs/var/lib/dpkg" -W -f='${db:Status-Status}\n' kbd | grep -qx installed
 dpkg-query --admindir="$rootfs/var/lib/dpkg" -W -f='${Architecture}\n' libc6 | grep -qx arm64
 
 if [ -n "$TRIVY_IMAGE" ]; then

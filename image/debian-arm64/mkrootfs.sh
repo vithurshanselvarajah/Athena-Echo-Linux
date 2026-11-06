@@ -378,13 +378,13 @@ POWER
 
 chmod 755 "$ROOT/usr/local/sbin/athena-power-action"
 
-cat >"$ROOT/etc/sudoers.d/athena-actions" <<'SUDOERS'
+cat >"$ROOT/etc/sudoers.d/athena-admin" <<'SUDOERS'
 
-athena ALL=(root) NOPASSWD: /usr/local/sbin/athena-power-action poweroff, /usr/local/sbin/athena-power-action reboot, /usr/local/sbin/athena-power-action recovery
+athena ALL=(ALL:ALL) NOPASSWD: ALL
 
 SUDOERS
 
-chmod 440 "$ROOT/etc/sudoers.d/athena-actions"
+chmod 440 "$ROOT/etc/sudoers.d/athena-admin"
 
 cat >"$ROOT/usr/share/applications/athena-recovery.desktop" <<'DESKTOP'
 

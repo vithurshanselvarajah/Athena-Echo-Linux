@@ -59,7 +59,7 @@ The camera driver exposes raw Bayer capture. An application needs to convert fra
 
 ## Security and updates
 
-The `athena` account is unprivileged. Passwordless sudo is limited to the volume-key handler and fixed power actions; the account cannot run arbitrary commands as root. The root password is locked. An autologin serial console still grants local shell access to anyone with physical serial access.
+The `athena` account has passwordless full sudo access. The root password is locked. An autologin serial console therefore grants root access to anyone with physical serial access.
 
 Dependabot checks GitHub Actions and the pinned Docker base image weekly. Image builds use Debian Trixie, its stable-updates and security repositories, disable apt recommends and upgrade the base packages before installing the desktop. Package indexes are refreshed from signed repository metadata each build. Kernel and firmware sources are pinned by version and SHA-256; update those pins deliberately when moving to newer versions.
 
