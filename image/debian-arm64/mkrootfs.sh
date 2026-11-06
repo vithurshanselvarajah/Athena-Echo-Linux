@@ -198,21 +198,19 @@ case "${1:-}" in
 	poweroff) exec systemctl poweroff ;;
 	reboot) exec systemctl reboot ;;
 	recovery)
-		device=$(findfs PARTLABEL=misc 2>/dev/null || findfs LABEL=misc 2>/dev/null || true)
+		compatible=$(tr '\000' ' ' </proc/device-tree/compatible 2>/dev/null || true)
+		case " $compatible " in *" amzn,athena "*) ;; *) echo 'recovery action is only enabled for Athena' >&2; exit 1 ;; esac
+		device=$(findfs PARTLABEL=misc 2>/dev/null || true)
 		[ -b "$device" ] || { echo 'misc partition not found' >&2; exit 1; }
-		python3 - "$device" <<'PY'
-import os
-import sys
-
-device = sys.argv[1]
-command = b"boot-recovery".ljust(32, b"\0")
-with open(device, "r+b", buffering=0) as block:
-    block.write(command)
-    os.fsync(block.fileno())
-with open(device, "rb", buffering=0) as block:
-    if block.read(32) != command:
-        raise SystemExit("recovery request read-back failed")
-PY
+		raw_device=$(readlink -f "$device")
+		case "$raw_device" in /dev/mmcblk*p6) ;; *) echo "unexpected misc partition: $raw_device" >&2; exit 1 ;; esac
+		[ "$(blockdev --getsize64 "$raw_device")" -ge 2048 ] || { echo 'misc partition is too small' >&2; exit 1; }
+		tmp=$(mktemp /run/athena-recovery.XXXXXX)
+		trap 'rm -f "$tmp"' EXIT
+		dd if=/dev/zero of="$tmp" bs=32 count=1 status=none
+		printf 'boot-recovery' | dd of="$tmp" bs=1 count=13 conv=notrunc status=none
+		dd if="$tmp" of="$raw_device" bs=32 count=1 conv=notrunc,fsync status=none
+		cmp -n 32 "$tmp" "$raw_device" || { echo 'recovery request read-back failed' >&2; exit 1; }
 	exec systemctl reboot ;;
 	*) echo 'usage: athena-power-action poweroff|reboot|recovery' >&2; exit 2 ;;
 esac
