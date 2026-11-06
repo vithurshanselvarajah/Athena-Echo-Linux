@@ -121,7 +121,12 @@ cat > "$ROOT/etc/dconf/db/local.d/20-athena" <<'DCONF'
 idle-delay=uint32 300
 
 [org/gnome/desktop/screensaver]
+idle-activation-enabled=true
 lock-enabled=false
+
+[org/gnome/settings-daemon/plugins/power]
+sleep-inactive-ac-timeout=0
+sleep-inactive-battery-timeout=0
 DCONF
 
 cat > "$ROOT/usr/local/sbin/athena-set-identity" <<'IDENTITY'
