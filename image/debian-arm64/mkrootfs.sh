@@ -217,7 +217,7 @@ esac
 POWER
 chmod 755 "$ROOT/usr/local/sbin/athena-power-action"
 cat > "$ROOT/etc/sudoers.d/athena-actions" <<'SUDOERS'
-athena ALL=(root) NOPASSWD: /usr/local/sbin/athena-volume-key up, /usr/local/sbin/athena-volume-key down, /usr/local/sbin/athena-power-action poweroff, /usr/local/sbin/athena-power-action reboot, /usr/local/sbin/athena-power-action recovery
+athena ALL=(root) NOPASSWD: /usr/local/sbin/athena-power-action poweroff, /usr/local/sbin/athena-power-action reboot, /usr/local/sbin/athena-power-action recovery
 SUDOERS
 chmod 440 "$ROOT/etc/sudoers.d/athena-actions"
 cat > "$ROOT/usr/share/applications/athena-recovery.desktop" <<'DESKTOP'
@@ -305,6 +305,10 @@ amixer -q -c 0 cset name="$control" "$value,$value"
 VOLUMEKEY
 chmod 755 "$ROOT/usr/local/sbin/athena-volume-key"
 install -d -m 0755 "$ROOT/etc/sudoers.d"
+cat > "$ROOT/etc/sudoers.d/athena-volume-key" <<'SUDOERS'
+nobody ALL=(root) NOPASSWD: /usr/local/sbin/athena-volume-key up, /usr/local/sbin/athena-volume-key down
+SUDOERS
+chmod 440 "$ROOT/etc/sudoers.d/athena-volume-key"
 cat > "$ROOT/etc/triggerhappy/triggers.d/athena-volume.conf" <<'TRIGGERS'
 KEY_VOLUMEUP 1 /usr/bin/sudo -n /usr/local/sbin/athena-volume-key up
 KEY_VOLUMEDOWN 1 /usr/bin/sudo -n /usr/local/sbin/athena-volume-key down
