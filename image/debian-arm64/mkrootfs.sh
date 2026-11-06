@@ -177,7 +177,6 @@ JOURNAL
 say "Writing first-boot init, Phosh display configuration and serial-console setup"
 
 cat >"$ROOT/init" <<'INIT'
-
 #!/bin/sh
 
 mount -o remount,rw / || exec sh

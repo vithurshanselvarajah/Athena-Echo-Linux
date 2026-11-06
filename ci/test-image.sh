@@ -38,6 +38,9 @@ trap cleanup EXIT
 
 debugfs -R "rdump / $rootfs" "$SYSTEM" >/dev/null 2>&1
 
+test -x "$rootfs/init"
+test "$(head -n 1 "$rootfs/init")" = '#!/bin/sh'
+sh -n "$rootfs/init"
 test "$(awk -F: '$1 == "athena" { print $3 ":" $4 }' "$rootfs/etc/passwd")" = 1000:1000
 grep -q '^root:![^:]*:' "$rootfs/etc/shadow"
 test -x "$rootfs/usr/local/sbin/athena-set-identity"
