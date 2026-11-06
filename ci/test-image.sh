@@ -40,7 +40,6 @@ debugfs -R "rdump / $rootfs" "$SYSTEM" >/dev/null 2>&1
 
 for script in \
 	"$rootfs/init" \
-	"$rootfs/usr/sbin/policy-rc.d" \
 	"$rootfs/usr/local/sbin/athena-set-identity" \
 	"$rootfs/usr/local/sbin/athena-root-grow" \
 	"$rootfs/usr/local/sbin/athena-power-action" \
