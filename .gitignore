@@ -1,6 +1,12 @@
 /build/
 
 /backups/
+/.cache/
+/athena-kbuild/
+/cache/
+/.aws/
+/.agents/
+/.codex/
 
 __pycache__/
 *.py[cod]
@@ -14,18 +20,23 @@ __pycache__/
 *.mod
 *.mod.c
 *.cmd
+*.d
 *.dtb
 *.img
 *.cpio.gz
+*.cpio
+*.tar.xz
 Image
 Image.gz
 vmlinux
 System.map
 Module.symvers
 modules.order
+.tmp_versions/
 
 *.part
 *.tmp
+*.log
 *.swp
 *~
 .DS_Store

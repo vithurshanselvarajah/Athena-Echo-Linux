@@ -1,0 +1,56 @@
+name: Kernel build
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - athena_defconfig
+      - build.sh
+      - build-in-docker.sh
+      - Dockerfile.build
+      - dts/**
+      - src/**
+      - patches/**
+      - pack.py
+      - mkfwcpio.py
+      - dsp_slot.py
+      - check-boot.py
+      - check-source.py
+  pull_request:
+    branches: [main]
+    paths:
+      - athena_defconfig
+      - build.sh
+      - build-in-docker.sh
+      - Dockerfile.build
+      - dts/**
+      - src/**
+      - patches/**
+      - pack.py
+      - mkfwcpio.py
+      - dsp_slot.py
+      - check-boot.py
+      - check-source.py
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
+        with:
+          path: .cache/kernel
+          key: kernel-${{ runner.os }}-${{ hashFiles('athena_defconfig', 'dts/**', 'src/**', 'patches/**') }}
+          restore-keys: |
+            kernel-${{ runner.os }}-
+      - name: Build the kernel image
+        env:
+          WORK: .cache/kernel
+          JOBS: 2
+        run: ./build-in-docker.sh

@@ -15,15 +15,12 @@ done
 [ -n "$OUT" ] || { echo "usage: mkbringup.sh -o system.img [-w work] [-s 2048M]" >&2; exit 1; }
 [ "$(dpkg --print-architecture)" = arm64 ] || { echo "mkbringup: run inside an arm64 container" >&2; exit 1; }
 ROOT=/tmp/athena-rootfs
+CACHE=/cache
 rm -rf "$ROOT" "$WORK/debootstrap.log"
-mkdir -p "$ROOT" "$WORK"
+mkdir -p "$ROOT" "$WORK" "$CACHE/debootstrap" "$CACHE/apt/archives"
 export DEBIAN_FRONTEND=noninteractive
-say "Refreshing the build container package index"
-apt-get update
-say "Installing debootstrap and ext4 image tools"
-apt-get install -y --no-install-recommends debootstrap e2fsprogs ca-certificates
 say "Bootstrapping the Debian trixie arm64 base; package retrieval progress follows"
-debootstrap --arch=arm64 --variant=minbase --include=ca-certificates,systemd-sysv trixie "$ROOT" https://deb.debian.org/debian
+debootstrap --cache-dir="$CACHE/debootstrap" --arch=arm64 --variant=minbase --include=ca-certificates,systemd-sysv trixie "$ROOT" https://deb.debian.org/debian
 
 install -d -m 0755 "$ROOT/etc/dpkg/dpkg.cfg.d"
 cat > "$ROOT/etc/dpkg/dpkg.cfg.d/01-athena-slim" <<'DPKG'
@@ -45,8 +42,10 @@ cp /etc/resolv.conf "$ROOT/etc/resolv.conf"
 pkgs=$(sed 's/#.*//' /src/image/debian-arm64/desktop/phosh/packages.txt | xargs)
 say "Refreshing package indexes inside the arm64 root"
 chroot "$ROOT" apt-get update
+find "$CACHE/apt/archives" -type f -name '*.deb' -exec cp -n '{}' "$ROOT/var/cache/apt/archives/" \;
 say "Installing Phosh, Tauri runtime, hardware and network packages"
 chroot "$ROOT" apt-get install -y --no-install-recommends $pkgs
+find "$ROOT/var/cache/apt/archives" -type f -name '*.deb' -exec cp -n '{}' "$CACHE/apt/archives/" \;
 say "Removing package download caches to keep the image small"
 rm -f "$ROOT/usr/sbin/policy-rc.d"
 rm -rf "$ROOT/var/lib/apt/lists" "$ROOT/var/cache/apt/archives"/* "$ROOT/var/cache/debconf"/*

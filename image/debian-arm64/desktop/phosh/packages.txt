@@ -31,3 +31,5 @@ wpasupplicant
 xdg-utils
 
 dconf-service
+dconf-cli
+dconf-gsettings-backend

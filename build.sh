@@ -59,6 +59,8 @@ export LC_ALL=C TZ=UTC
 mkdir -p "$WORK/cache" "$OUT"
 WORK=$(cd "$WORK" && pwd) OUT=$(cd "$OUT" && pwd)
 CACHE=$WORK/cache
+KBUILD_OUT=$WORK/kbuild/linux-$KVER
+mkdir -p "$WORK/kbuild" "$KBUILD_OUT"
 
 fetch() { # fetch URL DEST SHA256
 	if [ ! -f "$2" ] || ! echo "$3  $2" | sha256sum -c --quiet - 2>/dev/null; then
@@ -73,17 +75,28 @@ fetch() { # fetch URL DEST SHA256
 	log "SHA256 verified: $(basename "$2")"
 }
 
-# 1. Kernel source
 log "[1/7] Preparing Linux $KVER source"
+source_inputs_hash() {
+	(
+		cd "$HERE"
+		find dts src patches -type f -print0 | sort -z | xargs -0 sha256sum | sha256sum | cut -d ' ' -f 1
+	)
+}
+SOURCE_HASH=$(printf '%s\n%s\n' "$KSHA256" "$(source_inputs_hash)" | sha256sum | cut -d ' ' -f 1)
+MANAGED_TREE=1
 if [ -n "${KTREE:-}" ]; then
+	MANAGED_TREE=0
 	KTREE=$(cd "$KTREE" && pwd)
 	grep -q "^SUBLEVEL = ${KVER##*.}$" "$KTREE/Makefile" || { echo "$KTREE is not linux-$KVER" >&2; exit 1; }
 else
 	fetch "$KURL" "$CACHE/linux-$KVER.tar.xz" "$KSHA256"
 	KTREE=$WORK/linux-$KVER
-	rm -rf "$KTREE"
-	log "Extracting Linux source into $WORK (this can take a few minutes)"
-	tar -C "$WORK" -xJf "$CACHE/linux-$KVER.tar.xz"
+	SOURCE_STAMP=$CACHE/linux-$KVER-athena-source.sha256
+	if [ ! -f "$KTREE/Makefile" ] || [ "$(cat "$SOURCE_STAMP" 2>/dev/null || true)" != "$SOURCE_HASH" ]; then
+		rm -rf "$KTREE"
+		log "Extracting Linux source into $WORK"
+		tar -C "$WORK" -xJf "$CACHE/linux-$KVER.tar.xz"
+	fi
 fi
 log "Linux source is ready"
 
@@ -103,9 +116,16 @@ done
 # 3. Board files, then the patches in order
 log "[3/7] Applying Athena device files and kernel patches"
 DTSDIR=$KTREE/arch/arm64/boot/dts/mediatek
-cp "$HERE/dts/mt8183-amazon-athena.dts" "$DTSDIR/"
-python3 "$HERE/dsp_slot.py" empty "$DTSDIR/mt8183-amazon-athena-dsp-slot.bin"
-cp "$HERE/src/mt8183-athena.c" "$KTREE/sound/soc/mediatek/mt8183/"
+copy_if_changed() {
+	if [ ! -f "$2" ] || ! cmp -s "$1" "$2"; then
+		install -D -m 0644 "$1" "$2"
+	fi
+}
+copy_if_changed "$HERE/dts/mt8183-amazon-athena.dts" "$DTSDIR/mt8183-amazon-athena.dts"
+SLOT_TMP=$CACHE/mt8183-amazon-athena-dsp-slot.bin
+python3 "$HERE/dsp_slot.py" empty "$SLOT_TMP"
+copy_if_changed "$SLOT_TMP" "$DTSDIR/mt8183-amazon-athena-dsp-slot.bin"
+copy_if_changed "$HERE/src/mt8183-athena.c" "$KTREE/sound/soc/mediatek/mt8183/mt8183-athena.c"
 
 P=$HERE/patches
 if ! grep -q "leave cache-only mode before the clocks are enabled" \
@@ -128,15 +148,13 @@ python3 "$P/patch-cci-sram.py" "$KTREE"
 python3 "$P/patch-thermal-devinfo.py" "$KTREE"
 python3 "$P/patch-camera.py" "$KTREE"
 python3 "$P/patch-jpeg-enc-stall.py" "$KTREE"
+if [ "$MANAGED_TREE" -eq 1 ]; then printf '%s\n' "$SOURCE_HASH" > "$CACHE/linux-$KVER-athena-source.sha256"; fi
 
 # 4. Configuration
 log "[4/7] Configuring the arm64 kernel"
-cd "$KTREE"
-# The debug info records the build directory, and the linker's build-id (kept in the Image)
-# hashes it: map the tree's path away so the output does not depend on where it was built.
 export KCFLAGS="-fdebug-prefix-map=$KTREE=." KAFLAGS="-fdebug-prefix-map=$KTREE=."
-cp "$HERE/athena_defconfig" .config
-make olddefconfig
+copy_if_changed "$HERE/athena_defconfig" "$KBUILD_OUT/.config"
+make -C "$KTREE" O="$KBUILD_OUT" olddefconfig
 for want in 'CONFIG_SND_SOC_MT8183_ATHENA=y' 'CONFIG_SND_SOC_TAS5805M=y' 'CONFIG_CRYPTO_LIB_SHA256=y' \
 		'CONFIG_FRAMEBUFFER_CONSOLE=y' 'CONFIG_FRAMEBUFFER_CONSOLE_ROTATION=y' \
 		'CONFIG_VT=y' 'CONFIG_VT_CONSOLE=y' 'CONFIG_QFMT_V2=y' 'CONFIG_TCS3472=y' \
@@ -150,7 +168,7 @@ for want in 'CONFIG_SND_SOC_MT8183_ATHENA=y' 'CONFIG_SND_SOC_TAS5805M=y' 'CONFIG
 		'CONFIG_DRM_PANFROST=y' 'CONFIG_PM_DEVFREQ=y' 'CONFIG_DEVFREQ_GOV_SIMPLE_ONDEMAND=y' 'CONFIG_DEVFREQ_THERMAL=y' \
 		'CONFIG_VIDEO_MEDIATEK_JPEG=y' 'CONFIG_CGROUPS=y' 'CONFIG_FHANDLE=y' \
 		'CONFIG_SECCOMP=y' 'CONFIG_SECCOMP_FILTER=y'; do
-	grep -qxF "$want" .config || { echo "config check failed: $want" >&2; exit 1; }
+	grep -qxF "$want" "$KBUILD_OUT/.config" || { echo "config check failed: $want" >&2; exit 1; }
 done
 # All required netfilter features are built in because the boot image does not ship kernel modules.
 for want in 'CONFIG_NETFILTER=y' 'CONFIG_NETFILTER_XTABLES=y' 'CONFIG_NETFILTER_XTABLES_LEGACY=y' \
@@ -158,15 +176,15 @@ for want in 'CONFIG_NETFILTER=y' 'CONFIG_NETFILTER_XTABLES=y' 'CONFIG_NETFILTER_
 		'CONFIG_NETFILTER_XT_MATCH_OWNER=y' 'CONFIG_NETFILTER_XT_MATCH_RECENT=y' 'CONFIG_IP_NF_IPTABLES=y' 'CONFIG_IP_NF_IPTABLES_LEGACY=y' \
 		'CONFIG_IP_NF_FILTER=y' 'CONFIG_IP_NF_TARGET_REJECT=y' 'CONFIG_IP6_NF_IPTABLES=y' \
 		'CONFIG_IP6_NF_IPTABLES_LEGACY=y' 'CONFIG_IP6_NF_FILTER=y' 'CONFIG_IP6_NF_TARGET_REJECT=y'; do
-	grep -qxF "$want" .config || { echo "config check failed: $want" >&2; exit 1; }
+	grep -qxF "$want" "$KBUILD_OUT/.config" || { echo "config check failed: $want" >&2; exit 1; }
 done
 
 # 5. Build
 log "[5/7] Compiling Image.gz and the Athena device tree with $JOBS jobs"
-make -j"$JOBS" Image.gz mediatek/mt8183-amazon-athena.dtb
-cp arch/arm64/boot/Image.gz "$OUT/Image.gz"
-cp "$DTSDIR/mt8183-amazon-athena.dtb" "$OUT/athena.dtb"
-cp .config "$OUT/kernel.config"
+make -C "$KTREE" O="$KBUILD_OUT" -j"$JOBS" Image.gz mediatek/mt8183-amazon-athena.dtb
+cp "$KBUILD_OUT/arch/arm64/boot/Image.gz" "$OUT/Image.gz"
+cp "$KBUILD_OUT/arch/arm64/boot/dts/mediatek/mt8183-amazon-athena.dtb" "$OUT/athena.dtb"
+cp "$KBUILD_OUT/.config" "$OUT/kernel.config"
 log "Kernel and device tree compilation finished"
 
 # 6. Ramdisk and boot image
@@ -180,37 +198,49 @@ python3 "$HERE/check-boot.py" "$OUT/boot-athena.img"
 log "[7/7] Preparing and compressing the corresponding kernel source archive (this can take several minutes)"
 SRCNAME=linux-$KVER-athena
 SRCTAR=$OUT/$SRCNAME-source.tar.xz
-PKG=$WORK/source-pkg
-rm -rf "$PKG" && mkdir -p "$PKG"
-cp -a "$KTREE" "$PKG/$SRCNAME"
-make -C "$PKG/$SRCNAME" distclean
-# distclean leaves the kernel images behind (seen in v1.2.16's source tarball)
-rm -f "$PKG/$SRCNAME"/arch/arm64/boot/Image "$PKG/$SRCNAME"/arch/arm64/boot/Image.gz
-cp "$OUT/kernel.config" "$PKG/$SRCNAME/athena.config"
-tar -C "$PKG" --sort=name --mtime="$KBUILD_BUILD_TIMESTAMP" --owner=0 --group=0 --numeric-owner \
-	--mode='go-w,a+rX' --format=gnu -cf - "$SRCNAME" | xz -v -T1 -6 > "$SRCTAR.part"
-mv "$SRCTAR.part" "$SRCTAR"
-# Exclude build-machine paths, home directories, and user names
-# that kernel.org's own tarball does not already have (it has a few /home/ in documentation). The
-# kernel.org tarball is fetched for that when KTREE stood in for it.
-fetch "$KURL" "$CACHE/linux-$KVER.tar.xz" "$KSHA256"
-esc() { printf '%s' "$1" | sed 's/[][\.*^$+?(){}|]/\\&/g'; }
-pat="/home/|relbuild|$(esc "$WORK")|$(esc "$KTREE")"
-for n in "$(id -un)" "${USER:-}" "${SUDO_USER:-}"; do
-	case "$n" in ""|root|builder) ;; *) pat="$pat|\b$(esc "$n")\b";; esac
-done
-count() { grep -aoiE "$pat" | tr 'A-Z' 'a-z' | sort | uniq -c; }
-ours=$(tar -xJOf "$SRCTAR" | count || true)
-theirs=$(tar -xJOf "$CACHE/linux-$KVER.tar.xz" | count || true)
-names=$(tar -tJf "$SRCTAR" | grep -iE "$pat" || true)
-if [ -n "$names" ] || [ "$ours" != "$theirs" ]; then
-	echo "$SRCTAR carries something of this computer:" >&2
-	echo "  kernel.org's: $theirs" >&2; echo "  ours: $ours" >&2
-	[ -z "$names" ] || echo "  in names: $(echo "$names" | head -5)" >&2
-	exit 1
+SRC_STAMP=$CACHE/linux-$KVER-athena-source-package.sha256
+SRC_HASH=$(printf '%s\n%s\n%s\n' "$SOURCE_HASH" "$(sha256sum "$OUT/kernel.config" | cut -d ' ' -f 1)" "$KBUILD_BUILD_TIMESTAMP" | sha256sum | cut -d ' ' -f 1)
+if [ "$MANAGED_TREE" -eq 0 ] || [ ! -s "$SRCTAR" ] || [ "$(cat "$SRC_STAMP" 2>/dev/null || true)" != "$SRC_HASH" ]; then
+	PKG=$WORK/source-pkg
+	rm -rf "$PKG" && mkdir -p "$PKG"
+	cp -a "$KTREE" "$PKG/$SRCNAME"
+	make -C "$PKG/$SRCNAME" distclean
+	rm -f "$PKG/$SRCNAME"/arch/arm64/boot/Image "$PKG/$SRCNAME"/arch/arm64/boot/Image.gz
+	cp "$OUT/kernel.config" "$PKG/$SRCNAME/athena.config"
+	tar -C "$PKG" --sort=name --mtime="$KBUILD_BUILD_TIMESTAMP" --owner=0 --group=0 --numeric-owner \
+		--mode='go-w,a+rX' --format=gnu -cf - "$SRCNAME" | xz -v -T1 -6 > "$SRCTAR.part"
+	mv "$SRCTAR.part" "$SRCTAR"
+	printf '%s\n' "$SRC_HASH" > "$SRC_STAMP"
+else
+	log "Using cached corresponding source archive"
 fi
-python3 "$HERE/check-source.py" --config "$OUT/kernel.config" "$SRCTAR" "$OUT/boot-athena.img"
-rm -rf "$PKG"
+VERIFY_STAMP=$CACHE/linux-$KVER-athena-source-verified.sha256
+VERIFY_HASH=$(printf '%s\n' \
+	"$(sha256sum "$SRCTAR" "$OUT/boot-athena.img" "$OUT/kernel.config" "$HERE/build.sh" "$HERE/check-source.py")" \
+	"$WORK" "$KTREE" "$(id -un)" "${USER:-}" "${SUDO_USER:-}" | sha256sum | cut -d ' ' -f 1)
+if [ "$(cat "$VERIFY_STAMP" 2>/dev/null || true)" = "$VERIFY_HASH" ]; then
+	log "Using cached source and boot verification"
+else
+	fetch "$KURL" "$CACHE/linux-$KVER.tar.xz" "$KSHA256"
+	esc() { printf '%s' "$1" | sed 's/[][.*^$+?(){}|]/\\&/g'; }
+	pat="/home/|relbuild|$(esc "$WORK")|$(esc "$KTREE")"
+	for n in "$(id -un)" "${USER:-}" "${SUDO_USER:-}"; do
+		case "$n" in ""|root|builder) ;; *) pat="$pat|\b$(esc "$n")\b";; esac
+	done
+	count() { grep -aoiE "$pat" | tr 'A-Z' 'a-z' | sort | uniq -c; }
+	ours=$(tar -xJOf "$SRCTAR" | count || true)
+	theirs=$(tar -xJOf "$CACHE/linux-$KVER.tar.xz" | count || true)
+	names=$(tar -tJf "$SRCTAR" | grep -iE "$pat" || true)
+	if [ -n "$names" ] || [ "$ours" != "$theirs" ]; then
+		echo "$SRCTAR carries something of this computer:" >&2
+		echo "  kernel.org's: $theirs" >&2; echo "  ours: $ours" >&2
+		[ -z "$names" ] || echo "  in names: $(echo "$names" | head -5)" >&2
+		exit 1
+	fi
+	python3 "$HERE/check-source.py" --config "$OUT/kernel.config" "$SRCTAR" "$OUT/boot-athena.img"
+	printf '%s\n' "$VERIFY_HASH" > "$VERIFY_STAMP"
+fi
+rm -rf "$WORK/source-pkg"
 
 log "Writing final SHA256SUMS"
 cd "$OUT" && sha256sum boot-athena.img Image.gz athena.dtb ramdisk.cpio.gz kernel.config "$SRCNAME-source.tar.xz" > SHA256SUMS && cat SHA256SUMS

@@ -1,0 +1,31 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Check script syntax
+        run: |
+          bash -n build.sh build-in-docker.sh build-debian-image.sh image/debian-arm64/mkrootfs.sh
+          python3 -m py_compile install-athena.py pack.py check-boot.py check-source.py mkfwcpio.py dsp_slot.py patches/*.py
+          git diff --check
+          if grep -R -n -E 'NOPASSWD:[[:space:]]*ALL' image; then exit 1; fi
+      - name: Check shell scripts
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends shellcheck
+          shellcheck -S error build.sh build-in-docker.sh build-debian-image.sh image/debian-arm64/mkrootfs.sh
+

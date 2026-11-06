@@ -7,6 +7,7 @@ ROOT=$(cd "$HERE" && pwd)
 IMAGE=athena-kbuild:debian13
 VOLUME=athena-kbuild
 OUT=${OUT:-$ROOT/build}
+WORKDIR=${WORK:-}
 log() { printf '[%s] %s\n' "$(date '+%H:%M:%S')" "$*"; }
 
 mkdir -p "$OUT"
@@ -17,10 +18,18 @@ log "Building or refreshing Docker build environment ($IMAGE)"
 docker build --progress=plain -t "$IMAGE" -f "$HERE/Dockerfile.build" "$HERE"
 log "Docker build environment is ready"
 log "Starting kernel build in container athena-kbuild (JOBS=${JOBS:-4})"
-docker volume create "$VOLUME" >/dev/null
+WORK_MOUNT=()
+if [ -n "$WORKDIR" ]; then
+	mkdir -p "$WORKDIR"
+	WORKDIR=$(cd "$WORKDIR" && pwd)
+	WORK_MOUNT=(-v "$WORKDIR:/athena-kbuild")
+else
+	docker volume create "$VOLUME" >/dev/null
+	WORK_MOUNT=(--mount "type=volume,src=$VOLUME,dst=/athena-kbuild")
+fi
 CONTAINER=$(docker create --rm --name athena-kbuild \
     -v "$ROOT:/repo:ro" \
-    --mount "type=volume,src=$VOLUME,dst=/athena-kbuild" \
+    "${WORK_MOUNT[@]}" \
     -v "$OUT:/out" \
     -e WORK=/athena-kbuild -e OUT=/out -e JOBS="${JOBS:-4}" \
     "$IMAGE" bash /repo/build.sh)
