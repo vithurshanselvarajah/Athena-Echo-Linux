@@ -71,6 +71,7 @@ test -f "$rootfs/etc/triggerhappy/triggers.d/athena-volume.conf"
 grep -qx 'athena ALL=(ALL:ALL) NOPASSWD: ALL' "$rootfs/etc/sudoers.d/athena-admin"
 grep -q 'PARTLABEL=misc' "$rootfs/usr/local/sbin/athena-power-action"
 test -x "$rootfs/usr/bin/gsettings"
+test -e "$rootfs/usr/share/applications/sm.puri.OSK0.desktop"
 
 dpkg-query --admindir="$rootfs/var/lib/dpkg" -W -f='${db:Status-Status}\n' phosh | grep -qx installed
 dpkg-query --admindir="$rootfs/var/lib/dpkg" -W -f='${db:Status-Status}\n' phosh-mobile-settings | grep -qx installed
