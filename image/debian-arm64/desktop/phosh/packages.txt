@@ -16,6 +16,7 @@ libgl1
 libgl1-mesa-dri
 libgles2
 libglib2.0-bin
+librsvg2-common
 libwebkit2gtk-4.1-0
 network-manager
 phosh
