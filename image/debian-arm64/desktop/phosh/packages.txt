@@ -6,6 +6,7 @@ e2fsprogs
 foot
 gnome-session-bin
 gnome-session-common
+gnome-settings-daemon
 kbd
 libasound2t64
 libdrm2
@@ -14,11 +15,13 @@ libgbm1
 libgl1
 libgl1-mesa-dri
 libgles2
+libglib2.0-bin
 libwebkit2gtk-4.1-0
 network-manager
 phosh
 phosh-mobile-settings
 phosh-mobile-tweaks
+polkitd
 seatd
 squeekboard
 sudo

@@ -70,11 +70,15 @@ test -f "$rootfs/usr/share/applications/athena-poweroff.desktop"
 test -f "$rootfs/etc/triggerhappy/triggers.d/athena-volume.conf"
 grep -qx 'athena ALL=(ALL:ALL) NOPASSWD: ALL' "$rootfs/etc/sudoers.d/athena-admin"
 grep -q 'PARTLABEL=misc' "$rootfs/usr/local/sbin/athena-power-action"
+test -x "$rootfs/usr/bin/gsettings"
 
 dpkg-query --admindir="$rootfs/var/lib/dpkg" -W -f='${db:Status-Status}\n' phosh | grep -qx installed
 dpkg-query --admindir="$rootfs/var/lib/dpkg" -W -f='${db:Status-Status}\n' phosh-mobile-settings | grep -qx installed
 dpkg-query --admindir="$rootfs/var/lib/dpkg" -W -f='${db:Status-Status}\n' squeekboard | grep -qx installed
 dpkg-query --admindir="$rootfs/var/lib/dpkg" -W -f='${db:Status-Status}\n' kbd | grep -qx installed
+dpkg-query --admindir="$rootfs/var/lib/dpkg" -W -f='${db:Status-Status}\n' gnome-settings-daemon | grep -qx installed
+dpkg-query --admindir="$rootfs/var/lib/dpkg" -W -f='${db:Status-Status}\n' libglib2.0-bin | grep -qx installed
+dpkg-query --admindir="$rootfs/var/lib/dpkg" -W -f='${db:Status-Status}\n' polkitd | grep -qx installed
 dpkg-query --admindir="$rootfs/var/lib/dpkg" -W -f='${Architecture}\n' libc6 | grep -qx arm64
 
 if [ -n "$TRIVY_IMAGE" ]; then
