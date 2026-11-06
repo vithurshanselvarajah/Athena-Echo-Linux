@@ -66,24 +66,6 @@ edit(
     "drivers/iio/light/tcs3472.c",
     [
         (
-            """ * TODO: wait time
-
- */
-
-""",
-            """ * TODO: wait time
-
- *
-
- * athena: TCS3400 support. Same register addresses without the command-type
-
- * field, its own gains, ATIME step and interrupt clear (see tcs3400_chip).
-
- */
-
-""",
-        ),
-        (
             """#define TCS3472_CONTROL_AGAIN_MASK (BIT(0) | BIT(1))
 
 """,
