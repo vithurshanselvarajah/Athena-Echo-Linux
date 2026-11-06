@@ -73,7 +73,7 @@ jobs:
       - name: Build kernel and boot image
         env:
           WORK: ${{ github.workspace }}/.cache/kernel
-          JOBS: 2
+          JOBS: 4
         run: ./build-in-docker.sh
       - name: Build Debian arm64 image
         env:
