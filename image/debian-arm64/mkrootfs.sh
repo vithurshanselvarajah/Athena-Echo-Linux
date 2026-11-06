@@ -25,6 +25,17 @@ apt-get install -y --no-install-recommends debootstrap e2fsprogs ca-certificates
 say "Bootstrapping the Debian trixie arm64 base; package retrieval progress follows"
 debootstrap --arch=arm64 --variant=minbase --include=ca-certificates,systemd-sysv trixie "$ROOT" https://deb.debian.org/debian
 
+install -d -m 0755 "$ROOT/etc/dpkg/dpkg.cfg.d"
+cat > "$ROOT/etc/dpkg/dpkg.cfg.d/01-athena-slim" <<'DPKG'
+path-exclude=/usr/share/doc/*
+path-include=/usr/share/doc/*/copyright
+path-exclude=/usr/share/man/*
+path-exclude=/usr/share/info/*
+path-exclude=/usr/share/locale/*
+path-include=/usr/share/locale/en/*
+path-include=/usr/share/locale/en_GB/*
+DPKG
+
 cat > "$ROOT/usr/sbin/policy-rc.d" <<'POLICY'
 #!/bin/sh
 exit 101
@@ -34,11 +45,13 @@ cp /etc/resolv.conf "$ROOT/etc/resolv.conf"
 pkgs=$(sed 's/#.*//' /src/image/debian-arm64/packages.txt | xargs)
 say "Refreshing package indexes inside the arm64 root"
 chroot "$ROOT" apt-get update
-say "Installing desktop, Electron runtime, touch, audio and network packages"
+say "Installing Phosh, Tauri runtime, hardware and network packages"
 chroot "$ROOT" apt-get install -y --no-install-recommends $pkgs
 say "Removing package download caches to keep the image small"
 rm -f "$ROOT/usr/sbin/policy-rc.d"
 rm -rf "$ROOT/var/lib/apt/lists" "$ROOT/var/cache/apt/archives"/* "$ROOT/var/cache/debconf"/*
+find "$ROOT/usr/share/doc" -mindepth 1 -type f ! -name copyright -delete
+find "$ROOT/usr/share/doc" -depth -type d -empty -delete
 
 # One unprivileged desktop account, with passwordless sudo for the serial bring-up console.
 for group in seat video render input audio; do chroot "$ROOT" groupadd --system "$group" 2>/dev/null || true; done
@@ -59,8 +72,16 @@ HandlePowerKey=ignore
 HandlePowerKeyLongPress=ignore
 LOGIND
 
+install -d -m 0755 "$ROOT/etc/systemd/journald.conf.d"
+cat > "$ROOT/etc/systemd/journald.conf.d/athena.conf" <<'JOURNAL'
+[Journal]
+Storage=volatile
+RuntimeMaxUse=24M
+RuntimeKeepFree=16M
+JOURNAL
+
 # LK passes init=/init. Mount the early virtual filesystems, then hand PID 1 to Debian systemd.
-say "Writing first-boot init, Weston desktop and serial-console configuration"
+say "Writing first-boot init, Phosh display configuration and serial-console setup"
 cat > "$ROOT/init" <<'INIT'
 #!/bin/sh
 mount -o remount,rw / || exec sh
@@ -73,9 +94,10 @@ exec /sbin/init
 INIT
 chmod 755 "$ROOT/init"
 mkdir -p "$ROOT/proc" "$ROOT/sys" "$ROOT/dev/pts" "$ROOT/run" "$ROOT/var/log"
-install -d -m 0755 "$ROOT/etc/xdg/weston" "$ROOT/usr/local/sbin" \
+install -d -m 0755 "$ROOT/etc/phosh" "$ROOT/usr/local/sbin" \
 	"$ROOT/etc/udev/rules.d" \
 	"$ROOT/etc/triggerhappy/triggers.d" \
+	"$ROOT/etc/systemd/system/phosh.service.d" \
 	"$ROOT/etc/systemd/system/serial-getty@ttyS0.service.d" \
 	"$ROOT/etc/systemd/system/serial-getty@ttyGS0.service.d"
 cat > "$ROOT/etc/udev/rules.d/70-athena-drm.rules" <<'UDEV'
@@ -83,44 +105,13 @@ SUBSYSTEM=="drm", KERNEL=="card[0-9]*", GROUP="video", MODE="0660"
 SUBSYSTEM=="drm", KERNEL=="renderD[0-9]*", GROUP="render", MODE="0660"
 SUBSYSTEM=="input", KERNEL=="event*", ATTRS{name}=="generic ft5x06 (3e)", ENV{WL_OUTPUT}="DSI-1", ENV{LIBINPUT_CALIBRATION_MATRIX}="0.018601 -1.008491 0.999218 1.012344 0.001388 -0.007528"
 UDEV
-cat > "$ROOT/etc/xdg/weston/weston.ini" <<'WESTON'
+cat > "$ROOT/etc/phosh/phoc.ini" <<'PHOC'
 [core]
-backend=drm-backend.so
-shell=desktop-shell.so
-idle-time=0
-xwayland=true
+xwayland=false
 
-[shell]
-background-color=0xff18202b
-
-[output]
-name=DSI-1
-transform=rotate-270
-WESTON
-
-cat > "$ROOT/usr/local/sbin/athena-desktop-session" <<'SESSION'
-#!/bin/sh
-set -eu
-export XDG_RUNTIME_DIR=/run/weston
-export LIBSEAT_BACKEND=seatd
-unset WAYLAND_DISPLAY
-mkdir -p "$XDG_RUNTIME_DIR"
-chmod 700 "$XDG_RUNTIME_DIR"
-WESTON_LOG="$XDG_RUNTIME_DIR/weston.log"
-weston --socket=wayland-0 --config=/etc/xdg/weston/weston.ini --log="$WESTON_LOG" &
-weston_pid=$!
-trap 'kill "$weston_pid" 2>/dev/null || true' EXIT INT TERM
-export WAYLAND_DISPLAY=wayland-0
-n=0
-while [ ! -S "$XDG_RUNTIME_DIR/$WAYLAND_DISPLAY" ] && kill -0 "$weston_pid" 2>/dev/null && [ "$n" -lt 30 ]; do
-	sleep 1; n=$((n+1))
-done
-[ -S "$XDG_RUNTIME_DIR/$WAYLAND_DISPLAY" ] || { echo "Weston did not start; inspect $WESTON_LOG" >&2; exit 1; }
-DISPLAY=$(sed -n 's/.*xserver listening on display :\([0-9][0-9]*\).*/:\1/p' "$WESTON_LOG" | tail -1)
-export DISPLAY
-exec foot
-SESSION
-chmod 755 "$ROOT/usr/local/sbin/athena-desktop-session"
+[output:DSI-1]
+rotate=270
+PHOC
 
 # Configure Athena speaker playback and the four-channel microphone capture path.
 cat > "$ROOT/usr/local/sbin/athena-audio-init" <<'AUDIOINIT'
@@ -196,25 +187,13 @@ KEY_VOLUMEUP 1 /usr/bin/sudo -n /usr/local/sbin/athena-volume-key up
 KEY_VOLUMEDOWN 1 /usr/bin/sudo -n /usr/local/sbin/athena-volume-key down
 TRIGGERS
 
-cat > "$ROOT/etc/systemd/system/athena-desktop.service" <<'UNIT'
+cat > "$ROOT/etc/systemd/system/phosh.service.d/athena.conf" <<'UNIT'
 [Unit]
-Description=Athena Weston desktop and terminal
-After=systemd-udev-trigger.service seatd.service systemd-user-sessions.service
 Requires=seatd.service
+After=seatd.service
 
 [Service]
-Type=simple
-User=bringup
-SupplementaryGroups=video render input seat audio
-RuntimeDirectory=weston
-RuntimeDirectoryMode=0700
 Environment=LIBSEAT_BACKEND=seatd
-ExecStart=/usr/local/sbin/athena-desktop-session
-Restart=always
-RestartSec=2
-
-[Install]
-WantedBy=graphical.target
 UNIT
 cat > "$ROOT/usr/local/sbin/athena-usb-console" <<'USB'
 #!/bin/sh
@@ -284,7 +263,7 @@ After=athena-usb-console.service
 ExecStart=
 ExecStart=-/sbin/agetty --autologin bringup --keep-baud 115200 ttyGS0 vt100
 GETTY
-chroot "$ROOT" systemctl --no-reload --root=/ enable graphical.target seatd.service systemd-resolved.service systemd-timesyncd.service NetworkManager.service athena-desktop.service athena-audio-init.service triggerhappy.service athena-usb-console.service sys-kernel-config.mount serial-getty@ttyS0.service serial-getty@ttyGS0.service
+chroot "$ROOT" systemctl --no-reload --root=/ enable graphical.target phosh.service seatd.service systemd-resolved.service systemd-timesyncd.service NetworkManager.service bluetooth.service athena-audio-init.service triggerhappy.service athena-usb-console.service sys-kernel-config.mount serial-getty@ttyS0.service serial-getty@ttyGS0.service
 chroot "$ROOT" systemctl --no-reload --root=/ disable getty@tty1.service
 chroot "$ROOT" systemctl --no-reload --root=/ set-default graphical.target
 rm -f "$ROOT/etc/machine-id"
