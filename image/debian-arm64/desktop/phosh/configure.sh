@@ -15,7 +15,7 @@ xwayland=false
 
 [output:DSI-1]
 
-rotate=270
+rotate=90
 
 PHOC
 
@@ -38,6 +38,10 @@ idle-delay=uint32 300
 idle-activation-enabled=true
 
 lock-enabled=false
+
+[sm/puri/phosh/lockscreen]
+
+require-unlock=false
 
 [org/gnome/settings-daemon/plugins/power]
 
