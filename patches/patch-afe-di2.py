@@ -20,6 +20,7 @@ Usage: patch-afe-di2.py KTREE   (idempotent)
 
 """
 
+import re
 import sys
 
 tree = sys.argv[1]
@@ -40,9 +41,17 @@ def edit(path, pairs):
 
     for a, b in pairs:
 
-        assert s.count(a) == 1, (path, a[:70], s.count(a))
+        lines = [line.strip() for line in a.splitlines() if line.strip()]
 
-        s = s.replace(a, b)
+        pattern = r"(?m)^[ \t]*" + r"[ \t]*\n(?:[ \t]*\n)*[ \t]*".join(
+            re.escape(line) for line in lines
+        ) + r"[ \t]*"
+
+        replacement = "\n".join(line for line in b.splitlines() if line.strip())
+
+        s, count = re.subn(pattern, lambda _: replacement, s)
+
+        assert count == 1, (path, a[:70], count)
 
     open(p, "w").write(s)
 
