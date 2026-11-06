@@ -91,7 +91,6 @@ path-include=/usr/share/locale/en_GB/*
 DPKG
 
 cat >"$ROOT/usr/sbin/policy-rc.d" <<'POLICY'
-
 #!/bin/sh
 
 exit 101
@@ -219,7 +218,6 @@ UDEV
 bash "$DESKTOP_DIR/configure.sh" "$ROOT"
 
 cat >"$ROOT/usr/local/sbin/athena-set-identity" <<'IDENTITY'
-
 #!/bin/sh
 
 set -eu
@@ -281,7 +279,6 @@ WantedBy=multi-user.target
 UNIT
 
 cat >"$ROOT/usr/local/sbin/athena-root-grow" <<'GROW'
-
 #!/bin/sh
 
 set -eu
@@ -333,7 +330,6 @@ WantedBy=multi-user.target
 UNIT
 
 cat >"$ROOT/usr/local/sbin/athena-power-action" <<'POWER'
-
 #!/bin/sh
 
 set -eu
@@ -429,7 +425,6 @@ DESKTOP
 chroot "$ROOT" dconf update
 
 cat >"$ROOT/usr/local/sbin/athena-audio-init" <<'AUDIOINIT'
-
 #!/bin/sh
 
 set -eu
@@ -507,7 +502,6 @@ WantedBy=multi-user.target
 UNIT
 
 cat >"$ROOT/usr/local/sbin/athena-volume-key" <<'VOLUMEKEY'
-
 #!/bin/sh
 
 set -eu
@@ -559,7 +553,6 @@ KEY_VOLUMEDOWN 1 /usr/bin/sudo -n /usr/local/sbin/athena-volume-key down
 TRIGGERS
 
 cat >"$ROOT/usr/local/sbin/athena-usb-console" <<'USB'
-
 #!/bin/sh
 
 set -eu

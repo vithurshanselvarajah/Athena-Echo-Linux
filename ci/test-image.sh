@@ -38,9 +38,19 @@ trap cleanup EXIT
 
 debugfs -R "rdump / $rootfs" "$SYSTEM" >/dev/null 2>&1
 
-test -x "$rootfs/init"
-test "$(head -n 1 "$rootfs/init")" = '#!/bin/sh'
-sh -n "$rootfs/init"
+for script in \
+	"$rootfs/init" \
+	"$rootfs/usr/sbin/policy-rc.d" \
+	"$rootfs/usr/local/sbin/athena-set-identity" \
+	"$rootfs/usr/local/sbin/athena-root-grow" \
+	"$rootfs/usr/local/sbin/athena-power-action" \
+	"$rootfs/usr/local/sbin/athena-audio-init" \
+	"$rootfs/usr/local/sbin/athena-volume-key" \
+	"$rootfs/usr/local/sbin/athena-usb-console"; do
+	test -x "$script"
+	test "$(head -n 1 "$script")" = '#!/bin/sh'
+	sh -n "$script"
+done
 test "$(awk -F: '$1 == "athena" { print $3 ":" $4 }' "$rootfs/etc/passwd")" = 1000:1000
 grep -q '^root:![^:]*:' "$rootfs/etc/shadow"
 test -x "$rootfs/usr/local/sbin/athena-set-identity"
