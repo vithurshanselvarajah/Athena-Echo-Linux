@@ -13,24 +13,19 @@ route the machine driver adds to one of these mixers gets no control and stays d
 
 Usage: patch-afe-awb-dl1.py KTREE   (idempotent)
 """
-
 import sys
 
 p = sys.argv[1] + "/sound/soc/mediatek/mt8183/mt8183-afe-pcm.c"
 MARK = "athena: DL1 into AWB"
 s = open(p).read()
 if MARK not in s:
-    a = """	{"UL2_CH1", "I2S2_CH1", "I2S2"},
+    a = '''	{"UL2_CH1", "I2S2_CH1", "I2S2"},
 	{"UL2_CH2", "I2S2_CH2", "I2S2"},
-"""
+'''
     assert s.count(a) == 1, "UL2 routes"
-    s = s.replace(
-        a,
-        a
-        + """	/* athena: DL1 into AWB, the echo reference (DL1_AWB_Record) */
+    s = s.replace(a, a + '''	/* athena: DL1 into AWB, the echo reference (DL1_AWB_Record) */
 	{"UL2_CH1", "DL1_CH1", "DL1"},
 	{"UL2_CH2", "DL1_CH2", "DL1"},
-""",
-    )
+''')
     open(p, "w").write(s)
 print("patched")

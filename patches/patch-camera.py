@@ -22,7 +22,6 @@ Echo Show 5. This adds:
 
 Usage: patch-camera.py KTREE   (idempotent)
 """
-
 import os
 import shutil
 import sys
@@ -60,59 +59,33 @@ for name in sorted(os.listdir(os.path.join(src, "isp"))):
 copy("ov13855.c", "drivers/media/i2c/ov13855.c")
 copy("ov13855-tables.inc", "drivers/media/i2c/ov13855-tables.inc")
 
-edit(
-    "drivers/media/platform/mediatek/Kconfig",
-    [
-        (
-            'source "drivers/media/platform/mediatek/jpeg/Kconfig"\n',
-            '# athena: camera (seninf + CAMSV)\nsource "drivers/media/platform/mediatek/isp/Kconfig"\n'
-            'source "drivers/media/platform/mediatek/jpeg/Kconfig"\n',
-        ),
-    ],
-)
-edit(
-    "drivers/media/platform/mediatek/Makefile",
-    [
-        (
-            "obj-y += jpeg/\n",
-            "# athena: camera (seninf + CAMSV)\nobj-y += isp/\nobj-y += jpeg/\n",
-        ),
-    ],
-)
-edit(
-    "drivers/phy/mediatek/phy-mtk-mipi-csi-0-5.c",
-    [
-        (
-            '\t{ .compatible = "mediatek,mt8365-csi-rx" },\n',
-            '\t{ .compatible = "mediatek,mt8365-csi-rx" },\n'
-            "\t/* athena: camera. MT8183 has the same CSI-2 receive PHY */\n"
-            '\t{ .compatible = "mediatek,mt8183-csi-rx" },\n',
-        ),
-    ],
-)
-edit(
-    "drivers/media/i2c/Kconfig",
-    [
-        (
-            "config VIDEO_OV13B10\n",
-            "config VIDEO_OV13855\n"
-            '\ttristate "OmniVision OV13855 sensor support"\n'
-            "\tselect V4L2_CCI_I2C\n"
-            "\thelp\n"
-            "\t  This is a Video4Linux2 sensor driver for the OmniVision\n"
-            "\t  OV13855 camera (athena: camera).\n"
-            "\n"
-            "config VIDEO_OV13B10\n",
-        ),
-    ],
-)
-edit(
-    "drivers/media/i2c/Makefile",
-    [
-        (
-            "obj-$(CONFIG_VIDEO_OV13858) += ov13858.o\n",
-            "obj-$(CONFIG_VIDEO_OV13858) += ov13858.o\n"
-            "# athena: camera\nobj-$(CONFIG_VIDEO_OV13855) += ov13855.o\n",
-        ),
-    ],
-)
+edit("drivers/media/platform/mediatek/Kconfig", [
+    ('source "drivers/media/platform/mediatek/jpeg/Kconfig"\n',
+     '# athena: camera (seninf + CAMSV)\nsource "drivers/media/platform/mediatek/isp/Kconfig"\n'
+     'source "drivers/media/platform/mediatek/jpeg/Kconfig"\n'),
+])
+edit("drivers/media/platform/mediatek/Makefile", [
+    ("obj-y += jpeg/\n", "# athena: camera (seninf + CAMSV)\nobj-y += isp/\nobj-y += jpeg/\n"),
+])
+edit("drivers/phy/mediatek/phy-mtk-mipi-csi-0-5.c", [
+    ('\t{ .compatible = "mediatek,mt8365-csi-rx" },\n',
+     '\t{ .compatible = "mediatek,mt8365-csi-rx" },\n'
+     '\t/* athena: camera. MT8183 has the same CSI-2 receive PHY */\n'
+     '\t{ .compatible = "mediatek,mt8183-csi-rx" },\n'),
+])
+edit("drivers/media/i2c/Kconfig", [
+    ('config VIDEO_OV13B10\n',
+     'config VIDEO_OV13855\n'
+     '\ttristate "OmniVision OV13855 sensor support"\n'
+     '\tselect V4L2_CCI_I2C\n'
+     '\thelp\n'
+     '\t  This is a Video4Linux2 sensor driver for the OmniVision\n'
+     '\t  OV13855 camera (athena: camera).\n'
+     '\n'
+     'config VIDEO_OV13B10\n'),
+])
+edit("drivers/media/i2c/Makefile", [
+    ("obj-$(CONFIG_VIDEO_OV13858) += ov13858.o\n",
+     "obj-$(CONFIG_VIDEO_OV13858) += ov13858.o\n"
+     "# athena: camera\nobj-$(CONFIG_VIDEO_OV13855) += ov13855.o\n"),
+])

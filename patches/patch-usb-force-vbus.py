@@ -14,7 +14,6 @@ drivers, when the device tree asks for it:
 
 Usage: patch-usb-force-vbus.py KTREE   (idempotent)
 """
-
 import sys
 
 tree = sys.argv[1]
@@ -32,39 +31,31 @@ def edit(path, pairs):
     open(p, "w").write(s)
 
 
-edit(
-    "drivers/phy/mediatek/phy-mtk-tphy.c",
-    [
-        (
-            "#define P2C_RG_VBUSVALID		BIT(5)\n",
-            "/* athena: force-vbus, the force bits for the session signals in U2PHYDTM1 */\n"
-            "#define P2C_FORCE_VBUSVALID		BIT(13)\n"
-            "#define P2C_FORCE_BVALID		BIT(11)\n"
-            "#define P2C_FORCE_AVALID		BIT(10)\n"
-            "#define P2C_RG_BVALID			BIT(3)\n"
-            "#define P2C_RG_VBUSVALID		BIT(5)\n",
-        ),
-        (
-            "	bool type_force_mode;\n",
-            "	bool type_force_mode;\n	bool force_vbus;\n",
-        ),
-        (
-            """	if (instance->type == PHY_TYPE_USB3)
+edit("drivers/phy/mediatek/phy-mtk-tphy.c", [
+    ("#define P2C_RG_VBUSVALID		BIT(5)\n",
+     "/* athena: force-vbus, the force bits for the session signals in U2PHYDTM1 */\n"
+     "#define P2C_FORCE_VBUSVALID		BIT(13)\n"
+     "#define P2C_FORCE_BVALID		BIT(11)\n"
+     "#define P2C_FORCE_AVALID		BIT(10)\n"
+     "#define P2C_RG_BVALID			BIT(3)\n"
+     "#define P2C_RG_VBUSVALID		BIT(5)\n"),
+    ("	bool type_force_mode;\n",
+     "	bool type_force_mode;\n"
+     "	bool force_vbus;\n"),
+    ("""	if (instance->type == PHY_TYPE_USB3)
 		instance->type_force_mode = device_property_read_bool(dev, "mediatek,force-mode");
 """,
-            """	if (instance->type == PHY_TYPE_USB3)
+     """	if (instance->type == PHY_TYPE_USB3)
 		instance->type_force_mode = device_property_read_bool(dev, "mediatek,force-mode");
 	if (instance->type == PHY_TYPE_USB2)
 		instance->force_vbus = device_property_read_bool(dev, "mediatek,force-vbus");
-""",
-        ),
-        (
-            """	mtk_phy_clear_bits(com + U3P_U2PHYDTM1, P2C_RG_SESSEND);
+"""),
+    ("""	mtk_phy_clear_bits(com + U3P_U2PHYDTM1, P2C_RG_SESSEND);
 
 	if (tphy->pdata->avoid_rx_sen_degradation && index) {
 		mtk_phy_set_bits(com + U3D_U2PHYDCR0, P2C_RG_SIF_U2PLL_FORCE_ON);
 """,
-            """	mtk_phy_clear_bits(com + U3P_U2PHYDTM1, P2C_RG_SESSEND);
+     """	mtk_phy_clear_bits(com + U3P_U2PHYDTM1, P2C_RG_SESSEND);
 
 	/* VBUS sensed elsewhere (a GPIO): hold the session valid */
 	if (instance->force_vbus)
@@ -74,25 +65,18 @@ edit(
 
 	if (tphy->pdata->avoid_rx_sen_degradation && index) {
 		mtk_phy_set_bits(com + U3D_U2PHYDCR0, P2C_RG_SIF_U2PLL_FORCE_ON);
-""",
-        ),
-    ],
-)
+"""),
+])
 
-edit(
-    "drivers/usb/mtu3/mtu3_core.c",
-    [
-        (
-            """	/* vbus detected by HW */
+edit("drivers/usb/mtu3/mtu3_core.c", [
+    ("""	/* vbus detected by HW */
 	mtu3_clrbits(mbase, U3D_MISC_CTRL, VBUS_FRC_EN | VBUS_ON);
 """,
-            """	/* vbus detected by HW, or forced on where the board senses it elsewhere (athena: force-vbus) */
+     """	/* vbus detected by HW, or forced on where the board senses it elsewhere (athena: force-vbus) */
 	if (of_property_read_bool(mtu->dev->of_node, "mediatek,force-vbus"))
 		mtu3_setbits(mbase, U3D_MISC_CTRL, VBUS_FRC_EN | VBUS_ON);
 	else
 		mtu3_clrbits(mbase, U3D_MISC_CTRL, VBUS_FRC_EN | VBUS_ON);
-""",
-        ),
-    ],
-)
+"""),
+])
 print("patched")

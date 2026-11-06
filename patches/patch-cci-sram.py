@@ -15,7 +15,6 @@ regulator core's BUG_ON(min > max) stops the kernel at boot.
 
 Usage: patch-cci-sram.py KTREE   (idempotent)
 """
-
 import sys
 
 tree = sys.argv[1]
