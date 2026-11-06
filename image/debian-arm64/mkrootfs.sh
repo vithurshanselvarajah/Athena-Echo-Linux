@@ -52,6 +52,13 @@ echo athena-bringup > "$ROOT/etc/hostname"
 rm -f "$ROOT/etc/resolv.conf"
 ln -s /run/systemd/resolve/stub-resolv.conf "$ROOT/etc/resolv.conf"
 
+install -d -m 0755 "$ROOT/etc/systemd/logind.conf.d"
+cat > "$ROOT/etc/systemd/logind.conf.d/athena.conf" <<'LOGIND'
+[Login]
+HandlePowerKey=ignore
+HandlePowerKeyLongPress=ignore
+LOGIND
+
 # LK passes init=/init. Mount the early virtual filesystems, then hand PID 1 to Debian systemd.
 say "Writing first-boot init, Weston desktop and serial-console configuration"
 cat > "$ROOT/init" <<'INIT'
@@ -171,18 +178,22 @@ case "${1:-}" in
 	*) echo 'usage: athena-volume-key up|down' >&2; exit 2 ;;
 esac
 control='Master Playback Volume'
-value=$(amixer -c 0 cget name="$control" | sed -n 's/.*values=\([-0-9][0-9]*\).*/\1/p' | head -n 1)
+value=$(amixer -c 0 cget name="$control" | sed -n 's/^[[:space:]]*: values=\([-0-9][0-9]*\).*/\1/p' | head -n 1)
 case "$value" in ''|*[!0-9-]*) echo "could not read $control" >&2; exit 1 ;; esac
+if [ "$delta" -gt 0 ] && [ "$value" -ge 116 ]; then exit 0; fi
 value=$((value + delta))
 [ "$value" -ge 0 ] || value=0
-# 110 is 0 dB; cap at +6 dB.
-[ "$value" -le 116 ] || value=116
 amixer -q -c 0 cset name="$control" "$value,$value"
 VOLUMEKEY
 chmod 755 "$ROOT/usr/local/sbin/athena-volume-key"
+install -d -m 0755 "$ROOT/etc/sudoers.d"
+cat > "$ROOT/etc/sudoers.d/athena-volume-key" <<'SUDOERS'
+nobody ALL=(root) NOPASSWD: /usr/local/sbin/athena-volume-key up, /usr/local/sbin/athena-volume-key down
+SUDOERS
+chmod 440 "$ROOT/etc/sudoers.d/athena-volume-key"
 cat > "$ROOT/etc/triggerhappy/triggers.d/athena-volume.conf" <<'TRIGGERS'
-KEY_VOLUMEUP 1 /usr/local/sbin/athena-volume-key up
-KEY_VOLUMEDOWN 1 /usr/local/sbin/athena-volume-key down
+KEY_VOLUMEUP 1 /usr/bin/sudo -n /usr/local/sbin/athena-volume-key up
+KEY_VOLUMEDOWN 1 /usr/bin/sudo -n /usr/local/sbin/athena-volume-key down
 TRIGGERS
 
 cat > "$ROOT/etc/systemd/system/athena-desktop.service" <<'UNIT'
