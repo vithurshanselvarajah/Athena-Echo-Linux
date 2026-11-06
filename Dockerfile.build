@@ -2,5 +2,8 @@ FROM debian:13-slim@sha256:a72b4433de1cf7d6bae0c4cee74d0547f58601a643b3375f070c5
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential bc bison flex libssl-dev libelf-dev python3 curl xz-utils \
-    ca-certificates gcc-aarch64-linux-gnu patch \
+    ca-certificates patch \
+    && if [ "$(dpkg --print-architecture)" != arm64 ]; then \
+        apt-get install -y --no-install-recommends gcc-aarch64-linux-gnu; \
+    fi \
     && rm -rf /var/lib/apt/lists/*

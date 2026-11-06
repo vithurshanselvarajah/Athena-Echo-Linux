@@ -40,7 +40,15 @@ a90d3f66704d85889945fec5525ea77622549da83aced1aac99828383f8f1805 LICENSES/LICENC
 
 RAMDISK_FILES="LICENCE.mediatek mediatek/mt7663_n9_rebb.bin mediatek/mt7663_n9_v3.bin mediatek/mt7663pr2h.bin mediatek/mt7663pr2h_rebb.bin"
 
-export ARCH=arm64 CROSS_COMPILE=${CROSS_COMPILE:-aarch64-linux-gnu-}
+if [ -z "${CROSS_COMPILE:-}" ]; then
+	if [ "$(dpkg --print-architecture)" = arm64 ]; then
+		CROSS_COMPILE=
+	else
+		CROSS_COMPILE=aarch64-linux-gnu-
+	fi
+fi
+
+export ARCH=arm64 CROSS_COMPILE
 
 export KBUILD_BUILD_USER=builder KBUILD_BUILD_HOST=athena-build
 
@@ -238,7 +246,8 @@ for want in 'CONFIG_SND_SOC_MT8183_ATHENA=y' 'CONFIG_SND_SOC_TAS5805M=y' 'CONFIG
 		'CONFIG_MTK_SENINF30=y' 'CONFIG_MTK_CAMSV=y' 'CONFIG_PHY_MTK_MIPI_CSI_0_5=y' 'CONFIG_VIDEO_OV13855=y' \
 		'CONFIG_DRM_PANFROST=y' 'CONFIG_PM_DEVFREQ=y' 'CONFIG_DEVFREQ_GOV_SIMPLE_ONDEMAND=y' 'CONFIG_DEVFREQ_THERMAL=y' \
 		'CONFIG_VIDEO_MEDIATEK_JPEG=y' 'CONFIG_CGROUPS=y' 'CONFIG_FHANDLE=y' \
-		'CONFIG_SECCOMP=y' 'CONFIG_SECCOMP_FILTER=y'; do
+		'CONFIG_SECCOMP=y' 'CONFIG_SECCOMP_FILTER=y' 'CONFIG_BACKLIGHT_CLASS_DEVICE=y' \
+		'CONFIG_BACKLIGHT_PWM=y'; do
 
 	grep -qxF "$want" "$KBUILD_OUT/.config" || { echo "config check failed: $want" >&2; exit 1; }
 

@@ -17,7 +17,7 @@ The kernel builder keeps downloads and Kbuild output in a persistent Docker volu
 
 The root image starts at 1536 MiB. On first boot, the system grows the ext4 filesystem to fill the existing `athena-rootfs` partition. The build does not repartition eMMC or alter the TWRP, cache or userdata partitions.
 
-The kernel runtime is configured by `athena_defconfig`, `dts/`, `src/` and `patches/`. The Debian desktop package set lives in `image/debian-arm64/desktop/phosh/packages.txt`; the image assembly is in `image/debian-arm64/mkrootfs.sh`.
+The kernel runtime is configured by `athena_defconfig`, `dts/`, `src/` and `patches/`. Debian image assembly is in `image/debian-arm64/mkrootfs.sh`; the selected desktop has its package list and setup in `image/debian-arm64/desktop/phosh/`.
 
 ## Install
 
@@ -61,6 +61,14 @@ The camera driver exposes raw Bayer capture. An application needs to convert fra
 
 The `athena` account is unprivileged. Passwordless sudo is limited to the volume-key handler and fixed power actions; the account cannot run arbitrary commands as root. The root password is locked. An autologin serial console still grants local shell access to anyone with physical serial access.
 
-Dependabot checks GitHub Actions and the pinned Docker base image weekly. Debian packages are selected from Debian Trixie during image builds with apt recommends disabled and signed repository metadata refreshed. Kernel and firmware sources are pinned by version and SHA-256; update those pins deliberately when moving to newer versions.
+Dependabot checks GitHub Actions and the pinned Docker base image weekly. Image builds use Debian Trixie, its stable-updates and security repositories, disable apt recommends and upgrade the base packages before installing the desktop. Package indexes are refreshed from signed repository metadata each build. Kernel and firmware sources are pinned by version and SHA-256; update those pins deliberately when moving to newer versions.
 
 The journal is volatile and capped at 24 MiB to reduce eMMC writes. APT lists and downloaded packages are removed from the final image. Kernel outputs, build caches, logs and backups are ignored by Git.
+
+## CI and releases
+
+Pull requests run shell and Python checks, boot-image packer unit tests, and repository secret and configuration scans. Changes to kernel or image inputs also compile the kernel, create the Debian arm64 filesystem, inspect the images, scan installed packages for vulnerabilities, and generate a CycloneDX SBOM. Non-release image builds retain the vulnerability report and SBOM as workflow artifacts. A weekly image build refreshes Debian packages and the vulnerability database. Dependabot checks GitHub Actions and the pinned build and scanner images.
+
+Pushing a version tag such as `v1.0.0` runs the same build and scan gates, then publishes the boot image, system image, matching kernel source archive, kernel configuration, checksums, vulnerability report and SBOM as a GitHub release. A tag build fails when the image has fixable High or Critical package vulnerabilities; findings without a Debian fix remain in the attached report. The release job also creates signed provenance attestations. Enable immutable releases in the repository settings to prevent published release assets from being replaced. CI validates image contents but cannot test physical screen, touch, camera, audio or recovery behavior; those still need an Echo device.
+
+The source scan suppresses Trivy rule `DS-0002` for the ephemeral build and scanner containers, which need root to perform their build or scan jobs. These are not deployed to the Echo; the installed system runs its desktop account as an unprivileged user.

@@ -1,0 +1,145 @@
+name: Image builds
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+    paths:
+      - .github/workflows/images.yml
+      - Dockerfile.build
+      - Dockerfile.rootfs
+      - build*.sh
+      - athena_defconfig
+      - dts/**
+      - src/**
+      - patches/**
+      - image/**
+      - ci/**
+      - pack.py
+      - mkfwcpio.py
+      - dsp_slot.py
+      - check-boot.py
+      - check-source.py
+  pull_request:
+    branches: [main]
+    paths:
+      - .github/workflows/images.yml
+      - Dockerfile.build
+      - Dockerfile.rootfs
+      - build*.sh
+      - athena_defconfig
+      - dts/**
+      - src/**
+      - patches/**
+      - image/**
+      - ci/**
+      - pack.py
+      - mkfwcpio.py
+      - dsp_slot.py
+      - check-boot.py
+      - check-source.py
+  schedule:
+    - cron: '17 3 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
+        with:
+          path: .cache/kernel
+          key: kernel-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('Dockerfile.build') }}-${{ hashFiles('athena_defconfig', 'dts/**', 'src/**', 'patches/**') }}
+          restore-keys: |
+            kernel-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('Dockerfile.build') }}-
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
+        with:
+          path: .cache/debian-arm64
+          key: debian-${{ runner.os }}-trixie-${{ hashFiles('Dockerfile.rootfs', 'build-debian-image.sh', 'image/debian-arm64/**') }}
+          restore-keys: |
+            debian-${{ runner.os }}-trixie-
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
+        with:
+          path: .cache/trivy
+          key: trivy-${{ runner.os }}-${{ hashFiles('ci/Dockerfile.trivy') }}
+          restore-keys: |
+            trivy-${{ runner.os }}-
+      - name: Build kernel and boot image
+        env:
+          WORK: ${{ github.workspace }}/.cache/kernel
+          JOBS: 2
+        run: ./build-in-docker.sh
+      - name: Build Debian arm64 image
+        env:
+          CACHE_DIR: ${{ github.workspace }}/.cache/debian-arm64
+        run: ./build-debian-image.sh build/athena/system.img
+      - name: Build pinned vulnerability scanner
+        run: docker build --tag athena-trivy --file ci/Dockerfile.trivy ci
+      - name: Verify images, scan packages and create SBOM
+        env:
+          TRIVY_IMAGE: athena-trivy
+          TRIVY_CACHE_DIR: ${{ github.workspace }}/.cache/trivy
+          TRIVY_EXIT_CODE: ${{ startsWith(github.ref, 'refs/tags/v') && '1' || '0' }}
+        run: ci/test-image.sh build/athena/system.img build/athena
+      - name: Create image checksums
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            mkdir -p build/release
+            cp build/boot-athena.img build/release/
+            cp build/athena/system.img build/release/
+            cp build/athena/system.sbom.cdx.json build/release/
+            cp build/athena/system-vulnerabilities.json build/release/
+            cp build/kernel.config build/release/
+            cp build/linux-*-athena-source.tar.xz build/release/
+            cd build/release
+            sha256sum boot-athena.img system.img system.sbom.cdx.json system-vulnerabilities.json kernel.config linux-*-athena-source.tar.xz > SHA256SUMS
+          fi
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        if: ${{ always() && hashFiles('build/athena/system-vulnerabilities.json') != '' }}
+        with:
+          name: athena-scan-${{ github.run_id }}
+          path: |
+            build/athena/system.sbom.cdx.json
+            build/athena/system-vulnerabilities.json
+          compression-level: 0
+          retention-days: 7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        if: startsWith(github.ref, 'refs/tags/v')
+        with:
+          name: athena-image-${{ github.ref_name }}
+          path: build/release
+          compression-level: 0
+          retention-days: 2
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        with:
+          name: athena-image-${{ github.ref_name }}
+          path: release
+      - name: Generate signed image provenance and SBOM attestation
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6
+        with:
+          subject-path: release/system.img
+          sbom-path: release/system.sbom.cdx.json
+      - name: Generate boot image provenance
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6
+        with:
+          subject-path: release/boot-athena.img
+      - name: Publish release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" --verify-tag --generate-notes release/*

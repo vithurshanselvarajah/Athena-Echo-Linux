@@ -21,11 +21,25 @@ jobs:
         run: |
           bash -n build.sh build-in-docker.sh build-debian-image.sh image/debian-arm64/mkrootfs.sh
           python3 -m py_compile install-athena.py pack.py check-boot.py check-source.py mkfwcpio.py dsp_slot.py patches/*.py
+          python3 -m unittest discover -s tests -v
           git diff --check
           if grep -R -n -E 'NOPASSWD:[[:space:]]*ALL' image; then exit 1; fi
       - name: Check shell scripts
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends shellcheck
-          shellcheck -S error build.sh build-in-docker.sh build-debian-image.sh image/debian-arm64/mkrootfs.sh
+          shellcheck -S error build.sh build-in-docker.sh build-debian-image.sh image/debian-arm64/mkrootfs.sh image/debian-arm64/desktop/phosh/configure.sh
+          shellcheck -S error ci/*.sh
+  source-security:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Build pinned vulnerability scanner
+        run: docker build --tag athena-trivy --file ci/Dockerfile.trivy ci
+      - name: Scan repository secrets and configuration
+        run: docker run --rm -v "$PWD:/src:ro" athena-trivy fs --ignorefile /src/ci/.trivyignore --scanners secret,misconfig --severity HIGH,CRITICAL --exit-code 1 --skip-dirs /src/.git --skip-dirs /src/build --skip-dirs /src/backups /src
 
