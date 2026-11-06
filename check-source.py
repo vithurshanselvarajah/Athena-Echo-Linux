@@ -39,7 +39,6 @@ MARKERS = {
     "drivers/thermal/mediatek/auxadc_thermal.c": b"athena: devinfo calibration",
     "sound/soc/mediatek/mt8183/mt8183-afe-pcm.c": b"leave cache-only mode before the clocks are enabled",
     "drivers/phy/mediatek/phy-mtk-mipi-csi-0-5.c": b"athena: camera",
-    "drivers/media/platform/mediatek/isp/mtk_camsv_hw.c": b"athena: no error interrupts",
     "drivers/gpu/drm/panel/Makefile": b"athena: panel select",
     "drivers/gpu/drm/panel/panel-jadard-jd9365da-h3.c": (
         b"athena: reset deasserted at probe",
@@ -55,8 +54,15 @@ OURS = [
     "drivers/media/i2c/ov13855.c",
     "drivers/media/i2c/ov13855-tables.inc",
     "drivers/media/platform/mediatek/isp/mtk_seninf.c",
+    "drivers/media/platform/mediatek/isp/mtk_camsv_hw.c",
     "drivers/media/platform/mediatek/isp/mtk_camsv_video.c",
 ]
+
+SOURCE_CHECKS = {
+    "drivers/media/platform/mediatek/isp/mtk_camsv_hw.c": (
+        b"#define INT_ST_MASK_CAMSV (CAMSV_IRQ_PASS1_DON)",
+    ),
+}
 
 CONFIG = "athena.config"
 
@@ -164,6 +170,11 @@ def check(source, img, config=None):
         for mark in marks if isinstance(marks, tuple) else (marks,):
             if mark not in found.get(f, b""):
                 errors.append("%s has no %r: not the patched tree" % (f, mark.decode()))
+
+    for f, snippets in SOURCE_CHECKS.items():
+        for snippet in snippets:
+            if snippet not in found.get(f, b""):
+                errors.append("%s is missing expected source: %r" % (f, snippet.decode()))
 
     for f in OURS:
         if f not in found:
