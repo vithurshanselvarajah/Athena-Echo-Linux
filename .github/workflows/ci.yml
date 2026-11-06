@@ -23,7 +23,11 @@ jobs:
           python3 -m py_compile install-athena.py pack.py check-boot.py check-source.py mkfwcpio.py dsp_slot.py patches/*.py
           python3 -m unittest discover -s tests -v
           git diff --check
-          if grep -R -n -E 'NOPASSWD:[[:space:]]*ALL' image; then exit 1; fi
+          sudo_rules=$(grep -R -h -E 'NOPASSWD:[[:space:]]*ALL' image || true)
+          if [ "$sudo_rules" != 'athena ALL=(ALL:ALL) NOPASSWD: ALL' ]; then
+            printf 'Unexpected passwordless sudo rules:\n%s\n' "$sudo_rules" >&2
+            exit 1
+          fi
       - name: Check shell scripts
         run: |
           sudo apt-get update
