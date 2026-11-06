@@ -30,6 +30,12 @@ ROOT=/tmp/athena-rootfs
 
 CACHE=/cache
 
+DESKTOP=phosh
+
+DESKTOP_DIR=/src/image/debian-arm64/desktop/$DESKTOP
+
+DESKTOP_SERVICE=$DESKTOP.service
+
 rm -rf "$ROOT" "$WORK/debootstrap.log"
 
 mkdir -p "$ROOT" "$WORK" "$CACHE/debootstrap" "$CACHE/apt/archives"
@@ -39,6 +45,12 @@ export DEBIAN_FRONTEND=noninteractive
 say "Bootstrapping the Debian trixie arm64 base; package retrieval progress follows"
 
 debootstrap --cache-dir="$CACHE/debootstrap" --arch=arm64 --variant=minbase --include=ca-certificates,systemd-sysv trixie "$ROOT" https://deb.debian.org/debian
+
+cat > "$ROOT/etc/apt/sources.list" <<'APT'
+deb https://deb.debian.org/debian trixie main
+deb https://deb.debian.org/debian trixie-updates main
+deb https://security.debian.org/debian-security trixie-security main
+APT
 
 install -d -m 0755 "$ROOT/etc/dpkg/dpkg.cfg.d"
 
@@ -72,13 +84,19 @@ chmod 755 "$ROOT/usr/sbin/policy-rc.d"
 
 cp /etc/resolv.conf "$ROOT/etc/resolv.conf"
 
-pkgs=$(sed 's/#.*//' /src/image/debian-arm64/desktop/phosh/packages.txt | xargs)
+pkgs=$(sed 's/#.*//' "$DESKTOP_DIR/packages.txt" | xargs)
 
 say "Refreshing package indexes inside the arm64 root"
 
 chroot "$ROOT" apt-get update
 
 find "$CACHE/apt/archives" -type f -name '*.deb' -exec cp -n '{}' "$ROOT/var/cache/apt/archives/" \;
+
+say "Applying available Debian security and stable updates to the base system"
+
+chroot "$ROOT" apt-get upgrade -y --no-install-recommends
+
+find "$ROOT/var/cache/apt/archives" -type f -name '*.deb' -exec cp -n '{}' "$CACHE/apt/archives/" \;
 
 say "Installing Phosh, Tauri runtime, hardware and network packages"
 
@@ -164,13 +182,10 @@ chmod 755 "$ROOT/init"
 
 mkdir -p "$ROOT/proc" "$ROOT/sys" "$ROOT/dev/pts" "$ROOT/run" "$ROOT/var/log"
 
-install -d -m 0755 "$ROOT/etc/phosh" "$ROOT/usr/local/sbin" \
+install -d -m 0755 "$ROOT/usr/local/sbin" \
 	"$ROOT/usr/share/applications" \
 	"$ROOT/etc/udev/rules.d" \
 	"$ROOT/etc/triggerhappy/triggers.d" \
-	"$ROOT/etc/dconf/profile" "$ROOT/etc/dconf/db/local.d" \
-	"$ROOT/etc/systemd/system/athena-root-grow.service.d" \
-	"$ROOT/etc/systemd/system/phosh.service.d" \
 	"$ROOT/etc/systemd/system/serial-getty@ttyS0.service.d" \
 	"$ROOT/etc/systemd/system/serial-getty@ttyGS0.service.d"
 
@@ -184,45 +199,7 @@ SUBSYSTEM=="input", KERNEL=="event*", ATTRS{name}=="generic ft5x06 (3e)", ENV{WL
 
 UDEV
 
-cat > "$ROOT/etc/phosh/phoc.ini" <<'PHOC'
-
-[core]
-
-xwayland=false
-
-[output:DSI-1]
-
-rotate=270
-
-PHOC
-
-cat > "$ROOT/etc/dconf/profile/user" <<'PROFILE'
-
-user-db:user
-
-system-db:local
-
-PROFILE
-
-cat > "$ROOT/etc/dconf/db/local.d/20-athena" <<'DCONF'
-
-[org/gnome/desktop/session]
-
-idle-delay=uint32 300
-
-[org/gnome/desktop/screensaver]
-
-idle-activation-enabled=true
-
-lock-enabled=false
-
-[org/gnome/settings-daemon/plugins/power]
-
-sleep-inactive-ac-timeout=0
-
-sleep-inactive-battery-timeout=0
-
-DCONF
+bash "$DESKTOP_DIR/configure.sh" "$ROOT"
 
 cat > "$ROOT/usr/local/sbin/athena-set-identity" <<'IDENTITY'
 
@@ -312,7 +289,7 @@ GROW
 
 chmod 755 "$ROOT/usr/local/sbin/athena-root-grow"
 
-cat > "$ROOT/etc/systemd/system/athena-root-grow.service" <<'UNIT'
+cat > "$ROOT/etc/systemd/system/athena-root-grow.service" <<UNIT
 
 [Unit]
 
@@ -320,7 +297,7 @@ Description=Expand Athena ext4 root filesystem on first boot
 
 After=local-fs.target
 
-Before=phosh.service
+Before=$DESKTOP_SERVICE
 
 ConditionPathExists=!/var/lib/athena/root-expanded
 
@@ -564,20 +541,6 @@ KEY_VOLUMEDOWN 1 /usr/bin/sudo -n /usr/local/sbin/athena-volume-key down
 
 TRIGGERS
 
-cat > "$ROOT/etc/systemd/system/phosh.service.d/athena.conf" <<'UNIT'
-
-[Unit]
-
-Requires=seatd.service
-
-After=seatd.service
-
-[Service]
-
-Environment=LIBSEAT_BACKEND=seatd
-
-UNIT
-
 cat > "$ROOT/usr/local/sbin/athena-usb-console" <<'USB'
 
 #!/bin/sh
@@ -704,7 +667,7 @@ ExecStart=-/sbin/agetty --autologin athena --keep-baud 115200 ttyGS0 vt100
 
 GETTY
 
-chroot "$ROOT" systemctl --no-reload --root=/ enable graphical.target phosh.service seatd.service systemd-resolved.service systemd-timesyncd.service NetworkManager.service bluetooth.service athena-audio-init.service triggerhappy.service athena-usb-console.service sys-kernel-config.mount serial-getty@ttyS0.service serial-getty@ttyGS0.service athena-set-identity.service athena-root-grow.service
+chroot "$ROOT" systemctl --no-reload --root=/ enable graphical.target "$DESKTOP_SERVICE" seatd.service systemd-resolved.service systemd-timesyncd.service NetworkManager.service bluetooth.service athena-audio-init.service triggerhappy.service athena-usb-console.service sys-kernel-config.mount serial-getty@ttyS0.service serial-getty@ttyGS0.service athena-set-identity.service athena-root-grow.service
 
 chroot "$ROOT" systemctl --no-reload --root=/ disable getty@tty1.service
 
