@@ -15,6 +15,7 @@ Only for the MT7663; the same driver serves the MT7921, which is left alone.
 
 Usage: patch-btmtksdio-p192.py KTREE   (idempotent)
 """
+
 import sys
 
 tree = sys.argv[1]
@@ -30,7 +31,9 @@ a = """	/* When someone waits for the WMT event, the skb is being cloned
 	 */
 	if (test_bit(BTMTKSDIO_TX_WAIT_VND_EVT, &bdev->tx_state)) {"""
 assert s.count(a) == 1, a
-s = s.replace(a, """	/* athena: P-192 link keys. The MT7663 makes P-256 keys but encrypts
+s = s.replace(
+    a,
+    """	/* athena: P-192 link keys. The MT7663 makes P-256 keys but encrypts
 	 * with E0, so the core would drop the link ("Missing AES-CCM usage").
 	 * Report the key as its P-192 kind (8 -> 5, 7 -> 4).
 	 */
@@ -44,6 +47,8 @@ s = s.replace(a, """	/* athena: P-192 link keys. The MT7663 makes P-256 keys but
 			ev->key_type = HCI_LK_UNAUTH_COMBINATION_P192;
 	}
 
-""" + a)
+"""
+    + a,
+)
 open(p, "w").write(s)
 print(p + ": patched")

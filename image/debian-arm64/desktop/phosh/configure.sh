@@ -7,7 +7,7 @@ ROOT=${1:?usage: configure.sh rootfs-directory}
 install -d -m 0755 "$ROOT/etc/phosh" "$ROOT/etc/dconf/profile" \
 	"$ROOT/etc/dconf/db/local.d" "$ROOT/etc/systemd/system/phosh.service.d"
 
-cat > "$ROOT/etc/phosh/phoc.ini" <<'PHOC'
+cat >"$ROOT/etc/phosh/phoc.ini" <<'PHOC'
 
 [core]
 
@@ -19,7 +19,7 @@ rotate=270
 
 PHOC
 
-cat > "$ROOT/etc/dconf/profile/user" <<'PROFILE'
+cat >"$ROOT/etc/dconf/profile/user" <<'PROFILE'
 
 user-db:user
 
@@ -27,7 +27,7 @@ system-db:local
 
 PROFILE
 
-cat > "$ROOT/etc/dconf/db/local.d/20-athena" <<'DCONF'
+cat >"$ROOT/etc/dconf/db/local.d/20-athena" <<'DCONF'
 
 [org/gnome/desktop/session]
 
@@ -47,7 +47,7 @@ sleep-inactive-battery-timeout=0
 
 DCONF
 
-cat > "$ROOT/etc/systemd/system/phosh.service.d/athena.conf" <<'UNIT'
+cat >"$ROOT/etc/systemd/system/phosh.service.d/athena.conf" <<'UNIT'
 
 [Unit]
 

@@ -18,7 +18,10 @@ grep -q 'linux,code = <SW_CAMERA_LENS_COVER>' "$ROOT/dts/mt8183-amazon-athena.dt
 grep -q 'brightness-levels = <0 1023>' "$ROOT/dts/mt8183-amazon-athena.dts"
 
 label=$(blkid -p -s LABEL -o value "$SYSTEM")
-[ "$label" = athena-rootfs ] || { echo "unexpected root filesystem label: $label" >&2; exit 1; }
+[ "$label" = athena-rootfs ] || {
+	echo "unexpected root filesystem label: $label" >&2
+	exit 1
+}
 
 e2fsck -fn "$SYSTEM"
 

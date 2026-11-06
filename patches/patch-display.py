@@ -54,25 +54,35 @@ here = os.path.dirname(os.path.abspath(__file__))
 
 panel = os.path.join(here, "panel")
 
+
 def read(path):
 
     with open(os.path.join(tree, path)) as f:
-
         return f.read()
 
-def apply_patch(name, path, marker):
 
+def apply_patch(name, path, marker):
     """Apply panel/<name> unless <path> already holds <marker>."""
 
     if marker in read(path):
-
         return
 
-    subprocess.run(["patch", "-p1", "-N", "-s", "--no-backup-if-mismatch",
-
-                    "-i", os.path.join(panel, name)], cwd=tree, check=True)
+    subprocess.run(
+        [
+            "patch",
+            "-p1",
+            "-N",
+            "-s",
+            "--no-backup-if-mismatch",
+            "-i",
+            os.path.join(panel, name),
+        ],
+        cwd=tree,
+        check=True,
+    )
 
     assert marker in read(path), (name, "marker missing after patch")
+
 
 def edit(path, mark, pairs):
 
@@ -81,78 +91,97 @@ def edit(path, mark, pairs):
     s = open(p).read()
 
     if mark in s:
-
         return
 
     for a, b in pairs:
-
         assert s.count(a) == 1, (path, a[:70], s.count(a))
 
         s = s.replace(a, b)
 
     open(p, "w").write(s)
 
+
 BIND = "Documentation/devicetree/bindings/display/panel/"
 
-apply_patch("0001-dt-bindings-ili9881c-add-amazon-athena-panels.patch",
+apply_patch(
+    "0001-dt-bindings-ili9881c-add-amazon-athena-panels.patch",
+    BIND + "ilitek,ili9881c.yaml",
+    "amazon,athena-ili9881c-boe",
+)
 
-            BIND + "ilitek,ili9881c.yaml", "amazon,athena-ili9881c-boe")
+edit(
+    BIND + "ilitek,ili9881c.yaml",
+    "  port: true\n",
+    [
+        (
+            "  backlight: true\n  power-supply: true\n",
+            "  backlight: true\n  port: true\n  power-supply: true\n",
+        ),
+    ],
+)
 
-edit(BIND + "ilitek,ili9881c.yaml", "  port: true\n", [
+edit(
+    BIND + "ilitek,ili9881c.yaml",
+    "  vccio-supply: true\n",
+    [
+        (
+            "  port: true\n  power-supply: true\n",
+            "  port: true\n  power-supply: true\n  vccio-supply: true\n  vdd-supply: true\n",
+        ),
+    ],
+)
 
-    ("  backlight: true\n  power-supply: true\n",
+apply_patch(
+    "0002-drm-panel-ili9881c-add-amazon-athena-panels.patch",
+    "drivers/gpu/drm/panel/panel-ilitek-ili9881c.c",
+    "amazon,athena-ili9881c-boe",
+)
 
-     "  backlight: true\n  port: true\n  power-supply: true\n"),
+apply_patch(
+    "0003-dt-bindings-jd9365da-add-amazon-athena-panels.patch",
+    BIND + "jadard,jd9365da-h3.yaml",
+    "amazon,athena-jd9365-boe",
+)
 
-])
+apply_patch(
+    "0004-drm-panel-jd9365da-add-amazon-athena-panels.patch",
+    "drivers/gpu/drm/panel/panel-jadard-jd9365da-h3.c",
+    "amazon,athena-jd9365-boe",
+)
 
-edit(BIND + "ilitek,ili9881c.yaml", "  vccio-supply: true\n", [
-
-    ("  port: true\n  power-supply: true\n",
-
-     "  port: true\n  power-supply: true\n  vccio-supply: true\n  vdd-supply: true\n"),
-
-])
-
-apply_patch("0002-drm-panel-ili9881c-add-amazon-athena-panels.patch",
-
-            "drivers/gpu/drm/panel/panel-ilitek-ili9881c.c", "amazon,athena-ili9881c-boe")
-
-apply_patch("0003-dt-bindings-jd9365da-add-amazon-athena-panels.patch",
-
-            BIND + "jadard,jd9365da-h3.yaml", "amazon,athena-jd9365-boe")
-
-apply_patch("0004-drm-panel-jd9365da-add-amazon-athena-panels.patch",
-
-            "drivers/gpu/drm/panel/panel-jadard-jd9365da-h3.c", "amazon,athena-jd9365-boe")
-
-edit("drivers/gpu/drm/panel/panel-jadard-jd9365da-h3.c", "athena: reset deasserted at probe", [
-
-    ("""	jadard->reset = devm_gpiod_get(dev, "reset", GPIOD_OUT_HIGH);
+edit(
+    "drivers/gpu/drm/panel/panel-jadard-jd9365da-h3.c",
+    "athena: reset deasserted at probe",
+    [
+        (
+            """	jadard->reset = devm_gpiod_get(dev, "reset", GPIOD_OUT_HIGH);
 
 """,
-
-     """	/* athena: reset deasserted at probe, so LK's picture stays until prepare */
+            """	/* athena: reset deasserted at probe, so LK's picture stays until prepare */
 
 	jadard->reset = devm_gpiod_get(dev, "reset", GPIOD_OUT_LOW);
 
-"""),
+""",
+        ),
+    ],
+)
 
-])
+apply_patch(
+    "0005-drm-panel-jd9365da-athena-boe-new-link.patch",
+    "drivers/gpu/drm/panel/panel-jadard-jd9365da-h3.c",
+    "athena: boe-new link",
+)
 
-apply_patch("0005-drm-panel-jd9365da-athena-boe-new-link.patch",
-
-            "drivers/gpu/drm/panel/panel-jadard-jd9365da-h3.c", "athena: boe-new link")
-
-edit("drivers/gpu/drm/mediatek/mtk_drm_drv.c", "athena: evict-simplefb", [
-
-    ("#include <linux/component.h>\n",
-
-     "#include <linux/aperture.h>\n"
-
-     "#include <linux/component.h>\n"),
-
-    ("""	if (!mtk_drm_get_all_drm_priv(dev)) {
+edit(
+    "drivers/gpu/drm/mediatek/mtk_drm_drv.c",
+    "athena: evict-simplefb",
+    [
+        (
+            "#include <linux/component.h>\n",
+            "#include <linux/aperture.h>\n#include <linux/component.h>\n",
+        ),
+        (
+            """	if (!mtk_drm_get_all_drm_priv(dev)) {
 
 		put_device(private->mutex_dev);
 
@@ -163,8 +192,7 @@ edit("drivers/gpu/drm/mediatek/mtk_drm_drv.c", "athena: evict-simplefb", [
 	drm = drm_dev_alloc(&mtk_drm_driver, dev);
 
 """,
-
-     """	if (!mtk_drm_get_all_drm_priv(dev)) {
+            """	if (!mtk_drm_get_all_drm_priv(dev)) {
 
 		put_device(private->mutex_dev);
 
@@ -190,38 +218,35 @@ edit("drivers/gpu/drm/mediatek/mtk_drm_drv.c", "athena: evict-simplefb", [
 
 	drm = drm_dev_alloc(&mtk_drm_driver, dev);
 
-"""),
-
-])
+""",
+        ),
+    ],
+)
 
 src = os.path.join(here, "..", "src", "panel", "panel-athena-select.c")
 
 dst = os.path.join(tree, "drivers/gpu/drm/panel/panel-athena-select.c")
 
 with open(src, "rb") as f:
-
     new = f.read()
 
 if not os.path.exists(dst) or open(dst, "rb").read() != new:
-
     with open(dst, "wb") as f:
-
         f.write(new)
 
-edit("drivers/gpu/drm/panel/Makefile", "panel-athena-select.o", [
-
-    ("obj-$(CONFIG_DRM_PANEL_ILITEK_ILI9881C) += panel-ilitek-ili9881c.o\n",
-
-     "obj-$(CONFIG_DRM_PANEL_ILITEK_ILI9881C) += panel-ilitek-ili9881c.o\n"
-
-     "# athena: panel select. Built in only: it runs before the DSI host adds the panel.\n"
-
-     "ifeq ($(CONFIG_DRM_PANEL_ILITEK_ILI9881C),y)\n"
-
-     "obj-y += panel-athena-select.o\n"
-
-     "endif\n"),
-
-])
+edit(
+    "drivers/gpu/drm/panel/Makefile",
+    "panel-athena-select.o",
+    [
+        (
+            "obj-$(CONFIG_DRM_PANEL_ILITEK_ILI9881C) += panel-ilitek-ili9881c.o\n",
+            "obj-$(CONFIG_DRM_PANEL_ILITEK_ILI9881C) += panel-ilitek-ili9881c.o\n"
+            "# athena: panel select. Built in only: it runs before the DSI host adds the panel.\n"
+            "ifeq ($(CONFIG_DRM_PANEL_ILITEK_ILI9881C),y)\n"
+            "obj-y += panel-athena-select.o\n"
+            "endif\n",
+        ),
+    ],
+)
 
 print("patched")

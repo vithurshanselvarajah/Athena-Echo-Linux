@@ -84,7 +84,10 @@ fetch() {
 
 	fi
 
-	echo "$3  $2" | sha256sum -c --quiet - || { echo "sha256 mismatch: $2" >&2; exit 1; }
+	echo "$3  $2" | sha256sum -c --quiet - || {
+		echo "sha256 mismatch: $2" >&2
+		exit 1
+	}
 
 	log "SHA256 verified: $(basename "$2")"
 
@@ -114,7 +117,10 @@ if [ -n "${KTREE:-}" ]; then
 
 	KTREE=$(cd "$KTREE" && pwd)
 
-	grep -q "^SUBLEVEL = ${KVER##*.}$" "$KTREE/Makefile" || { echo "$KTREE is not linux-$KVER" >&2; exit 1; }
+	grep -q "^SUBLEVEL = ${KVER##*.}$" "$KTREE/Makefile" || {
+		echo "$KTREE is not linux-$KVER" >&2
+		exit 1
+	}
 
 else
 
@@ -187,7 +193,7 @@ copy_if_changed "$HERE/src/mt8183-athena.c" "$KTREE/sound/soc/mediatek/mt8183/mt
 P=$HERE/patches
 
 if ! grep -q "leave cache-only mode before the clocks are enabled" \
-		"$KTREE/sound/soc/mediatek/mt8183/mt8183-afe-pcm.c"; then
+	"$KTREE/sound/soc/mediatek/mt8183/mt8183-afe-pcm.c"; then
 
 	patch -d "$KTREE" -p1 -N -s --no-backup-if-mismatch \
 		-i "$P/0001-mt8183-afe-leave-cache-only-before-enabling-clocks.patch"
@@ -224,7 +230,7 @@ python3 "$P/patch-camera.py" "$KTREE"
 
 python3 "$P/patch-jpeg-enc-stall.py" "$KTREE"
 
-if [ "$MANAGED_TREE" -eq 1 ]; then printf '%s\n' "$SOURCE_HASH" > "$CACHE/linux-$KVER-athena-source.sha256"; fi
+if [ "$MANAGED_TREE" -eq 1 ]; then printf '%s\n' "$SOURCE_HASH" >"$CACHE/linux-$KVER-athena-source.sha256"; fi
 
 log "[4/7] Configuring the arm64 kernel"
 
@@ -235,31 +241,37 @@ copy_if_changed "$HERE/athena_defconfig" "$KBUILD_OUT/.config"
 make -C "$KTREE" O="$KBUILD_OUT" olddefconfig
 
 for want in 'CONFIG_SND_SOC_MT8183_ATHENA=y' 'CONFIG_SND_SOC_TAS5805M=y' 'CONFIG_CRYPTO_LIB_SHA256=y' \
-		'CONFIG_FRAMEBUFFER_CONSOLE=y' 'CONFIG_FRAMEBUFFER_CONSOLE_ROTATION=y' \
-		'CONFIG_VT=y' 'CONFIG_VT_CONSOLE=y' 'CONFIG_QFMT_V2=y' 'CONFIG_TCS3472=y' \
-		'CONFIG_BT_MTKSDIO=y' 'CONFIG_MT7663S=y' 'CONFIG_UHID=y' 'CONFIG_DRM_MEDIATEK=y' \
-		'CONFIG_DRM_PANEL_ILITEK_ILI9881C=y' 'CONFIG_DRM_PANEL_JADARD_JD9365DA_H3=y' 'CONFIG_MTK_IOMMU=y' 'CONFIG_DRM_FBDEV_EMULATION=y' \
-		'CONFIG_EXTRA_FIRMWARE=""' 'CONFIG_BLK_DEV_INITRD=y' 'CONFIG_RD_GZIP=y' \
-		'CONFIG_INITRAMFS_SOURCE=""' 'CONFIG_LOCALVERSION="-athena"' \
-		'CONFIG_ARM_MEDIATEK_CPUFREQ=y' 'CONFIG_ARM_MEDIATEK_CCI_DEVFREQ=y' 'CONFIG_MTK_SOC_THERMAL=y' \
-		'CONFIG_THERMAL_DEFAULT_GOV_POWER_ALLOCATOR=y' 'CONFIG_MEDIA_SUPPORT=y' 'CONFIG_VIDEO_DEV=y' \
-		'CONFIG_MTK_SENINF30=y' 'CONFIG_MTK_CAMSV=y' 'CONFIG_PHY_MTK_MIPI_CSI_0_5=y' 'CONFIG_VIDEO_OV13855=y' \
-		'CONFIG_DRM_PANFROST=y' 'CONFIG_PM_DEVFREQ=y' 'CONFIG_DEVFREQ_GOV_SIMPLE_ONDEMAND=y' 'CONFIG_DEVFREQ_THERMAL=y' \
-		'CONFIG_VIDEO_MEDIATEK_JPEG=y' 'CONFIG_CGROUPS=y' 'CONFIG_FHANDLE=y' \
-		'CONFIG_SECCOMP=y' 'CONFIG_SECCOMP_FILTER=y' 'CONFIG_BACKLIGHT_CLASS_DEVICE=y' \
-		'CONFIG_BACKLIGHT_PWM=y'; do
+	'CONFIG_FRAMEBUFFER_CONSOLE=y' 'CONFIG_FRAMEBUFFER_CONSOLE_ROTATION=y' \
+	'CONFIG_VT=y' 'CONFIG_VT_CONSOLE=y' 'CONFIG_QFMT_V2=y' 'CONFIG_TCS3472=y' \
+	'CONFIG_BT_MTKSDIO=y' 'CONFIG_MT7663S=y' 'CONFIG_UHID=y' 'CONFIG_DRM_MEDIATEK=y' \
+	'CONFIG_DRM_PANEL_ILITEK_ILI9881C=y' 'CONFIG_DRM_PANEL_JADARD_JD9365DA_H3=y' 'CONFIG_MTK_IOMMU=y' 'CONFIG_DRM_FBDEV_EMULATION=y' \
+	'CONFIG_EXTRA_FIRMWARE=""' 'CONFIG_BLK_DEV_INITRD=y' 'CONFIG_RD_GZIP=y' \
+	'CONFIG_INITRAMFS_SOURCE=""' 'CONFIG_LOCALVERSION="-athena"' \
+	'CONFIG_ARM_MEDIATEK_CPUFREQ=y' 'CONFIG_ARM_MEDIATEK_CCI_DEVFREQ=y' 'CONFIG_MTK_SOC_THERMAL=y' \
+	'CONFIG_THERMAL_DEFAULT_GOV_POWER_ALLOCATOR=y' 'CONFIG_MEDIA_SUPPORT=y' 'CONFIG_VIDEO_DEV=y' \
+	'CONFIG_MTK_SENINF30=y' 'CONFIG_MTK_CAMSV=y' 'CONFIG_PHY_MTK_MIPI_CSI_0_5=y' 'CONFIG_VIDEO_OV13855=y' \
+	'CONFIG_DRM_PANFROST=y' 'CONFIG_PM_DEVFREQ=y' 'CONFIG_DEVFREQ_GOV_SIMPLE_ONDEMAND=y' 'CONFIG_DEVFREQ_THERMAL=y' \
+	'CONFIG_VIDEO_MEDIATEK_JPEG=y' 'CONFIG_CGROUPS=y' 'CONFIG_FHANDLE=y' \
+	'CONFIG_SECCOMP=y' 'CONFIG_SECCOMP_FILTER=y' 'CONFIG_BACKLIGHT_CLASS_DEVICE=y' \
+	'CONFIG_BACKLIGHT_PWM=y'; do
 
-	grep -qxF "$want" "$KBUILD_OUT/.config" || { echo "config check failed: $want" >&2; exit 1; }
+	grep -qxF "$want" "$KBUILD_OUT/.config" || {
+		echo "config check failed: $want" >&2
+		exit 1
+	}
 
 done
 
 for want in 'CONFIG_NETFILTER=y' 'CONFIG_NETFILTER_XTABLES=y' 'CONFIG_NETFILTER_XTABLES_LEGACY=y' \
-		'CONFIG_NF_CONNTRACK=y' 'CONFIG_NETFILTER_XT_MATCH_STATE=y' 'CONFIG_NETFILTER_XT_MATCH_CONNTRACK=y' \
-		'CONFIG_NETFILTER_XT_MATCH_OWNER=y' 'CONFIG_NETFILTER_XT_MATCH_RECENT=y' 'CONFIG_IP_NF_IPTABLES=y' 'CONFIG_IP_NF_IPTABLES_LEGACY=y' \
-		'CONFIG_IP_NF_FILTER=y' 'CONFIG_IP_NF_TARGET_REJECT=y' 'CONFIG_IP6_NF_IPTABLES=y' \
-		'CONFIG_IP6_NF_IPTABLES_LEGACY=y' 'CONFIG_IP6_NF_FILTER=y' 'CONFIG_IP6_NF_TARGET_REJECT=y'; do
+	'CONFIG_NF_CONNTRACK=y' 'CONFIG_NETFILTER_XT_MATCH_STATE=y' 'CONFIG_NETFILTER_XT_MATCH_CONNTRACK=y' \
+	'CONFIG_NETFILTER_XT_MATCH_OWNER=y' 'CONFIG_NETFILTER_XT_MATCH_RECENT=y' 'CONFIG_IP_NF_IPTABLES=y' 'CONFIG_IP_NF_IPTABLES_LEGACY=y' \
+	'CONFIG_IP_NF_FILTER=y' 'CONFIG_IP_NF_TARGET_REJECT=y' 'CONFIG_IP6_NF_IPTABLES=y' \
+	'CONFIG_IP6_NF_IPTABLES_LEGACY=y' 'CONFIG_IP6_NF_FILTER=y' 'CONFIG_IP6_NF_TARGET_REJECT=y'; do
 
-	grep -qxF "$want" "$KBUILD_OUT/.config" || { echo "config check failed: $want" >&2; exit 1; }
+	grep -qxF "$want" "$KBUILD_OUT/.config" || {
+		echo "config check failed: $want" >&2
+		exit 1
+	}
 
 done
 
@@ -308,11 +320,11 @@ if [ "$MANAGED_TREE" -eq 0 ] || [ ! -s "$SRCTAR" ] || [ "$(cat "$SRC_STAMP" 2>/d
 	cp "$OUT/kernel.config" "$PKG/$SRCNAME/athena.config"
 
 	tar -C "$PKG" --sort=name --mtime="$KBUILD_BUILD_TIMESTAMP" --owner=0 --group=0 --numeric-owner \
-		--mode='go-w,a+rX' --format=gnu -cf - "$SRCNAME" | xz -v -T1 -6 > "$SRCTAR.part"
+		--mode='go-w,a+rX' --format=gnu -cf - "$SRCNAME" | xz -v -T1 -6 >"$SRCTAR.part"
 
 	mv "$SRCTAR.part" "$SRCTAR"
 
-	printf '%s\n' "$SRC_HASH" > "$SRC_STAMP"
+	printf '%s\n' "$SRC_HASH" >"$SRC_STAMP"
 
 else
 
@@ -340,7 +352,7 @@ else
 
 	for n in "$(id -un)" "${USER:-}" "${SUDO_USER:-}"; do
 
-		case "$n" in ""|root|builder) ;; *) pat="$pat|\b$(esc "$n")\b";; esac
+		case "$n" in "" | root | builder) ;; *) pat="$pat|\b$(esc "$n")\b" ;; esac
 
 	done
 
@@ -356,7 +368,8 @@ else
 
 		echo "$SRCTAR carries something of this computer:" >&2
 
-		echo "  kernel.org's: $theirs" >&2; echo "  ours: $ours" >&2
+		echo "  kernel.org's: $theirs" >&2
+		echo "  ours: $ours" >&2
 
 		[ -z "$names" ] || echo "  in names: $(echo "$names" | head -5)" >&2
 
@@ -366,7 +379,7 @@ else
 
 	python3 "$HERE/check-source.py" --config "$OUT/kernel.config" "$SRCTAR" "$OUT/boot-athena.img"
 
-	printf '%s\n' "$VERIFY_HASH" > "$VERIFY_STAMP"
+	printf '%s\n' "$VERIFY_HASH" >"$VERIFY_STAMP"
 
 fi
 
@@ -374,6 +387,6 @@ rm -rf "$WORK/source-pkg"
 
 log "Writing final SHA256SUMS"
 
-cd "$OUT" && sha256sum boot-athena.img Image.gz athena.dtb ramdisk.cpio.gz kernel.config "$SRCNAME-source.tar.xz" > SHA256SUMS && cat SHA256SUMS
+cd "$OUT" && sha256sum boot-athena.img Image.gz athena.dtb ramdisk.cpio.gz kernel.config "$SRCNAME-source.tar.xz" >SHA256SUMS && cat SHA256SUMS
 
 log "Build complete: $OUT"

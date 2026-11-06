@@ -15,8 +15,13 @@ class PackTests(unittest.TestCase):
         self.assertEqual(fields[0], pack.BOOT_MAGIC)
         self.assertEqual(fields[1], len(kernel) + len(dtb))
         self.assertEqual(fields[3], len(ramdisk))
-        self.assertEqual(image[pack.PAGE_SIZE:pack.PAGE_SIZE + len(kernel) + len(dtb)], kernel + dtb)
-        self.assertEqual(fields[13], pack.image_id(kernel + dtb, ramdisk).ljust(32, b"\0"))
+        self.assertEqual(
+            image[pack.PAGE_SIZE : pack.PAGE_SIZE + len(kernel) + len(dtb)],
+            kernel + dtb,
+        )
+        self.assertEqual(
+            fields[13], pack.image_id(kernel + dtb, ramdisk).ljust(32, b"\0")
+        )
         self.assertLessEqual(len(image), pack.BOOT_PARTITION_SIZE)
 
     def test_page_padding(self):

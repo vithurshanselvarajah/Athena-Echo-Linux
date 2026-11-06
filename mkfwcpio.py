@@ -13,6 +13,7 @@ The output depends only on the files: entries sorted, owner 0:0, mode 0755/0644,
 numbers in order, gzip header without name or time (the compressed bytes can still differ between
 zlib versions).
 """
+
 import gzip
 import os
 import sys
@@ -22,8 +23,10 @@ FW_ROOT = "lib/firmware"
 
 def newc_entry(ino, name, mode, data=b"", nlink=1):
     name_b = name.encode() + b"\0"
-    hdr = "070701" + "".join("%08X" % v for v in (
-        ino, mode, 0, 0, nlink, 0, len(data), 0, 0, 0, 0, len(name_b), 0))
+    hdr = "070701" + "".join(
+        "%08X" % v
+        for v in (ino, mode, 0, 0, nlink, 0, len(data), 0, 0, 0, 0, len(name_b), 0)
+    )
     out = hdr.encode() + name_b
     out += b"\0" * (-len(out) % 4)
     out += data

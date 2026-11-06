@@ -42,6 +42,7 @@ tree = sys.argv[1]
 
 MARK = "athena: TCS3400"
 
+
 def edit(rel, pairs):
 
     p = tree + "/" + rel
@@ -49,11 +50,9 @@ def edit(rel, pairs):
     s = open(p).read()
 
     if MARK in s:
-
         return
 
     for a, b in pairs:
-
         assert s.count(a) == 1, (rel, a[:70], s.count(a))
 
         s = s.replace(a, b)
@@ -62,15 +61,17 @@ def edit(rel, pairs):
 
     open(p, "w").write(s)
 
-edit("drivers/iio/light/tcs3472.c", [
 
-    (''' * TODO: wait time
+edit(
+    "drivers/iio/light/tcs3472.c",
+    [
+        (
+            """ * TODO: wait time
 
  */
 
-''',
-
-     ''' * TODO: wait time
+""",
+            """ * TODO: wait time
 
  *
 
@@ -80,13 +81,13 @@ edit("drivers/iio/light/tcs3472.c", [
 
  */
 
-'''),
+""",
+        ),
+        (
+            """#define TCS3472_CONTROL_AGAIN_MASK (BIT(0) | BIT(1))
 
-    ('''#define TCS3472_CONTROL_AGAIN_MASK (BIT(0) | BIT(1))
-
-''',
-
-     '''#define TCS3472_CONTROL_AGAIN_MASK (BIT(0) | BIT(1))
+""",
+            """#define TCS3472_CONTROL_AGAIN_MASK (BIT(0) | BIT(1))
 
 /* TCS3400: writing this clears all interrupts */
 
@@ -148,33 +149,33 @@ static const struct tcs3472_chip tcs3400_chip = {
 
 };
 
-'''),
-
-    ('''struct tcs3472_data {
+""",
+        ),
+        (
+            """struct tcs3472_data {
 
 	struct i2c_client *client;
 
-''',
-
-     '''struct tcs3472_data {
+""",
+            """struct tcs3472_data {
 
 	struct i2c_client *client;
 
 	const struct tcs3472_chip *chip;
 
-'''),
+""",
+        ),
+        (
+            """static const int tcs3472_agains[] = { 1, 4, 16, 60 };
 
-    ('''static const int tcs3472_agains[] = { 1, 4, 16, 60 };
+static const struct iio_chan_spec""",
+            """static const struct iio_chan_spec""",
+        ),
+        (
+            """static int tcs3472_req_data(struct tcs3472_data *data)
 
-static const struct iio_chan_spec''',
-
-     '''static const struct iio_chan_spec'''),
-
-    ('''static int tcs3472_req_data(struct tcs3472_data *data)
-
-{''',
-
-     '''/* a word/block register address with the chip's auto-increment bit */
+{""",
+            """/* a word/block register address with the chip's auto-increment bit */
 
 static u8 tcs3472_wreg(struct tcs3472_data *data, u8 reg)
 
@@ -186,31 +187,20 @@ static u8 tcs3472_wreg(struct tcs3472_data *data, u8 reg)
 
 static int tcs3472_req_data(struct tcs3472_data *data)
 
-{'''),
+{""",
+        ),
+        (
+            """		ret = i2c_smbus_read_word_data(data->client, chan->address);
 
-    ('''		ret = i2c_smbus_read_word_data(data->client, chan->address);
-
-		iio_device_release_direct(indio_dev);''',
-
-     '''		ret = i2c_smbus_read_word_data(data->client,
+		iio_device_release_direct(indio_dev);""",
+            """		ret = i2c_smbus_read_word_data(data->client,
 
 					       tcs3472_wreg(data, chan->address));
 
-		iio_device_release_direct(indio_dev);'''),
-
-    ('''		*val = tcs3472_agains[data->control &
-
-			TCS3472_CONTROL_AGAIN_MASK];
-
-		return IIO_VAL_INT;
-
-	case IIO_CHAN_INFO_INT_TIME:
-
-		*val = 0;
-
-		*val2 = (256 - data->atime) * 2400;''',
-
-     '''		*val = data->chip->agains[data->control &
+		iio_device_release_direct(indio_dev);""",
+        ),
+        (
+            """		*val = tcs3472_agains[data->control &
 
 			TCS3472_CONTROL_AGAIN_MASK];
 
@@ -220,47 +210,58 @@ static int tcs3472_req_data(struct tcs3472_data *data)
 
 		*val = 0;
 
-		*val2 = (256 - data->atime) * data->chip->atime_step_us;'''),
+		*val2 = (256 - data->atime) * 2400;""",
+            """		*val = data->chip->agains[data->control &
 
-    ('''		for (i = 0; i < ARRAY_SIZE(tcs3472_agains); i++) {
+			TCS3472_CONTROL_AGAIN_MASK];
 
-			if (val == tcs3472_agains[i]) {''',
+		return IIO_VAL_INT;
 
-     '''		for (i = 0; i < ARRAY_SIZE(tcs3472_agains); i++) {
+	case IIO_CHAN_INFO_INT_TIME:
 
-			if (val == data->chip->agains[i]) {'''),
+		*val = 0;
 
-    ('''			if (val2 == (256 - i) * 2400) {''',
+		*val2 = (256 - data->atime) * data->chip->atime_step_us;""",
+        ),
+        (
+            """		for (i = 0; i < ARRAY_SIZE(tcs3472_agains); i++) {
 
-     '''			if (val2 == (256 - i) * data->chip->atime_step_us) {'''),
+			if (val == tcs3472_agains[i]) {""",
+            """		for (i = 0; i < ARRAY_SIZE(tcs3472_agains); i++) {
 
-    ('''		period = (256 - data->atime) * 2400 *
+			if (val == data->chip->agains[i]) {""",
+        ),
+        (
+            """			if (val2 == (256 - i) * 2400) {""",
+            """			if (val2 == (256 - i) * data->chip->atime_step_us) {""",
+        ),
+        (
+            """		period = (256 - data->atime) * 2400 *
 
-			tcs3472_intr_pers[data->apers];''',
+			tcs3472_intr_pers[data->apers];""",
+            """		period = (256 - data->atime) * data->chip->atime_step_us *
 
-     '''		period = (256 - data->atime) * data->chip->atime_step_us *
+			tcs3472_intr_pers[data->apers];""",
+        ),
+        (
+            """		ret = i2c_smbus_write_word_data(data->client, command, val);""",
+            """		ret = i2c_smbus_write_word_data(data->client,
 
-			tcs3472_intr_pers[data->apers];'''),
+						tcs3472_wreg(data, command), val);""",
+        ),
+        (
+            """			if (period <= (256 - data->atime) * 2400 *
 
-    ('''		ret = i2c_smbus_write_word_data(data->client, command, val);''',
-
-     '''		ret = i2c_smbus_write_word_data(data->client,
-
-						tcs3472_wreg(data, command), val);'''),
-
-    ('''			if (period <= (256 - data->atime) * 2400 *
-
-					tcs3472_intr_pers[i])''',
-
-     '''			if (period <= (256 - data->atime) *
+					tcs3472_intr_pers[i])""",
+            """			if (period <= (256 - data->atime) *
 
 					data->chip->atime_step_us *
 
-					tcs3472_intr_pers[i])'''),
-
-    ('''		i2c_smbus_read_byte_data(data->client, TCS3472_INTR_CLEAR);''',
-
-     '''		if (data->chip->aiclear)
+					tcs3472_intr_pers[i])""",
+        ),
+        (
+            """		i2c_smbus_read_byte_data(data->client, TCS3472_INTR_CLEAR);""",
+            """		if (data->chip->aiclear)
 
 			i2c_smbus_write_byte_data(data->client,
 
@@ -270,17 +271,18 @@ static int tcs3472_req_data(struct tcs3472_data *data)
 
 			i2c_smbus_read_byte_data(data->client,
 
-						 TCS3472_INTR_CLEAR);'''),
+						 TCS3472_INTR_CLEAR);""",
+        ),
+        (
+            """		ret = i2c_smbus_read_word_data(data->client,
 
-    ('''		ret = i2c_smbus_read_word_data(data->client,
+			TCS3472_CDATA + 2*i);""",
+            """		ret = i2c_smbus_read_word_data(data->client,
 
-			TCS3472_CDATA + 2*i);''',
-
-     '''		ret = i2c_smbus_read_word_data(data->client,
-
-			tcs3472_wreg(data, TCS3472_CDATA + 2*i));'''),
-
-    ('''static ssize_t tcs3472_show_int_time_available(struct device *dev,
+			tcs3472_wreg(data, TCS3472_CDATA + 2*i));""",
+        ),
+        (
+            """static ssize_t tcs3472_show_int_time_available(struct device *dev,
 
 					struct device_attribute *attr,
 
@@ -296,9 +298,8 @@ static int tcs3472_req_data(struct tcs3472_data *data)
 
 		len += scnprintf(buf + len, PAGE_SIZE - len, "0.%06d ",
 
-			2400 * i);''',
-
-     '''static ssize_t tcs3472_show_int_time_available(struct device *dev,
+			2400 * i);""",
+            """static ssize_t tcs3472_show_int_time_available(struct device *dev,
 
 					struct device_attribute *attr,
 
@@ -316,17 +317,17 @@ static int tcs3472_req_data(struct tcs3472_data *data)
 
 		len += scnprintf(buf + len, PAGE_SIZE - len, "0.%06d ",
 
-			data->chip->atime_step_us * i);'''),
-
-    ('''static IIO_CONST_ATTR(calibscale_available, "1 4 16 60");
+			data->chip->atime_step_us * i);""",
+        ),
+        (
+            """static IIO_CONST_ATTR(calibscale_available, "1 4 16 60");
 
 static IIO_DEV_ATTR_INT_TIME_AVAIL(tcs3472_show_int_time_available);
 
 static struct attribute *tcs3472_attributes[] = {
 
-	&iio_const_attr_calibscale_available.dev_attr.attr,''',
-
-     '''static ssize_t tcs3472_show_calibscale_available(struct device *dev,
+	&iio_const_attr_calibscale_available.dev_attr.attr,""",
+            """static ssize_t tcs3472_show_calibscale_available(struct device *dev,
 
 					struct device_attribute *attr,
 
@@ -348,19 +349,20 @@ static IIO_DEV_ATTR_INT_TIME_AVAIL(tcs3472_show_int_time_available);
 
 static struct attribute *tcs3472_attributes[] = {
 
-	&iio_dev_attr_calibscale_available.dev_attr.attr,'''),
-
-    ('''	indio_dev->info = &tcs3472_info;
+	&iio_dev_attr_calibscale_available.dev_attr.attr,""",
+        ),
+        (
+            """	indio_dev->info = &tcs3472_info;
 
 	indio_dev->name = TCS3472_DRV_NAME;
 
-''',
+""",
+            """	indio_dev->info = &tcs3472_info;
 
-     '''	indio_dev->info = &tcs3472_info;
-
-'''),
-
-    ('''	if (ret == 0x44)
+""",
+        ),
+        (
+            """	if (ret == 0x44)
 
 		dev_info(&client->dev, "TCS34721/34725 found\\n");
 
@@ -372,9 +374,8 @@ static struct attribute *tcs3472_attributes[] = {
 
 		return -ENODEV;
 
-''',
-
-     '''	data->chip = &tcs3472_chip;
+""",
+            """	data->chip = &tcs3472_chip;
 
 	if (ret == 0x44) {
 
@@ -402,9 +403,10 @@ static struct attribute *tcs3472_attributes[] = {
 
 	indio_dev->name = data->chip->name;
 
-'''),
-
-    ('''	ret = i2c_smbus_read_word_data(data->client, TCS3472_AILT);
+""",
+        ),
+        (
+            """	ret = i2c_smbus_read_word_data(data->client, TCS3472_AILT);
 
 	if (ret < 0)
 
@@ -412,9 +414,8 @@ static struct attribute *tcs3472_attributes[] = {
 
 	data->low_thresh = ret;
 
-	ret = i2c_smbus_read_word_data(data->client, TCS3472_AIHT);''',
-
-     '''	ret = i2c_smbus_read_word_data(data->client,
+	ret = i2c_smbus_read_word_data(data->client, TCS3472_AIHT);""",
+            """	ret = i2c_smbus_read_word_data(data->client,
 
 				       tcs3472_wreg(data, TCS3472_AILT));
 
@@ -426,9 +427,10 @@ static struct attribute *tcs3472_attributes[] = {
 
 	ret = i2c_smbus_read_word_data(data->client,
 
-				       tcs3472_wreg(data, TCS3472_AIHT));'''),
-
-    ('''static const struct i2c_device_id tcs3472_id[] = {
+				       tcs3472_wreg(data, TCS3472_AIHT));""",
+        ),
+        (
+            """static const struct i2c_device_id tcs3472_id[] = {
 
 	{ "tcs3472" },
 
@@ -438,9 +440,8 @@ static struct attribute *tcs3472_attributes[] = {
 
 MODULE_DEVICE_TABLE(i2c, tcs3472_id);
 
-''',
-
-     '''static const struct i2c_device_id tcs3472_id[] = {
+""",
+            """static const struct i2c_device_id tcs3472_id[] = {
 
 	{ "tcs3400" },	/* athena: TCS3400 */
 
@@ -462,33 +463,35 @@ static const struct of_device_id tcs3472_of_match[] = {
 
 MODULE_DEVICE_TABLE(of, tcs3472_of_match);
 
-'''),
+""",
+        ),
+        (
+            """		.name	= TCS3472_DRV_NAME,
 
-    ('''		.name	= TCS3472_DRV_NAME,
-
-		.pm	= pm_sleep_ptr(&tcs3472_pm_ops),''',
-
-     '''		.name	= TCS3472_DRV_NAME,
+		.pm	= pm_sleep_ptr(&tcs3472_pm_ops),""",
+            """		.name	= TCS3472_DRV_NAME,
 
 		.of_match_table = tcs3472_of_match,
 
-		.pm	= pm_sleep_ptr(&tcs3472_pm_ops),'''),
-
-])
+		.pm	= pm_sleep_ptr(&tcs3472_pm_ops),""",
+        ),
+    ],
+)
 
 p = tree + "/Documentation/devicetree/bindings/trivial-devices.yaml"
 
 s = open(p).read()
 
 if "ams,tcs3400" not in s:
-
     a = "          - ams,iaq-core\n"
 
     assert s.count(a) == 1, "trivial-devices anchor"
 
-    s = s.replace(a, a + "            # AMS TCS3400 color light-to-digital converter\n"
-
-                  "          - ams,tcs3400\n")
+    s = s.replace(
+        a,
+        a + "            # AMS TCS3400 color light-to-digital converter\n"
+        "          - ams,tcs3400\n",
+    )
 
     open(p, "w").write(s)
 

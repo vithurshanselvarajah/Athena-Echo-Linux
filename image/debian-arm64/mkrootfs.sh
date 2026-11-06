@@ -10,21 +10,39 @@ while [ $# -gt 0 ]; do
 
 	case "$1" in
 
-	-o) OUT=$2; shift 2;;
+		-o)
+			OUT=$2
+			shift 2
+			;;
 
-	-w) WORK=$2; shift 2;;
+		-w)
+			WORK=$2
+			shift 2
+			;;
 
-	-s) SIZE=$2; shift 2;;
+		-s)
+			SIZE=$2
+			shift 2
+			;;
 
-	*) echo "mkrootfs: unknown argument $1" >&2; exit 1;;
+		*)
+			echo "mkrootfs: unknown argument $1" >&2
+			exit 1
+			;;
 
 	esac
 
 done
 
-[ -n "$OUT" ] || { echo "usage: mkrootfs.sh -o system.img [-w work] [-s 2048M]" >&2; exit 1; }
+[ -n "$OUT" ] || {
+	echo "usage: mkrootfs.sh -o system.img [-w work] [-s 2048M]" >&2
+	exit 1
+}
 
-[ "$(dpkg --print-architecture)" = arm64 ] || { echo "mkrootfs: run inside an arm64 container" >&2; exit 1; }
+[ "$(dpkg --print-architecture)" = arm64 ] || {
+	echo "mkrootfs: run inside an arm64 container" >&2
+	exit 1
+}
 
 ROOT=/tmp/athena-rootfs
 
@@ -46,7 +64,7 @@ say "Bootstrapping the Debian trixie arm64 base; package retrieval progress foll
 
 debootstrap --cache-dir="$CACHE/debootstrap" --arch=arm64 --variant=minbase --include=ca-certificates,systemd-sysv trixie "$ROOT" https://deb.debian.org/debian
 
-cat > "$ROOT/etc/apt/sources.list" <<'APT'
+cat >"$ROOT/etc/apt/sources.list" <<'APT'
 deb https://deb.debian.org/debian trixie main
 deb https://deb.debian.org/debian trixie-updates main
 deb https://security.debian.org/debian-security trixie-security main
@@ -54,7 +72,7 @@ APT
 
 install -d -m 0755 "$ROOT/etc/dpkg/dpkg.cfg.d"
 
-cat > "$ROOT/etc/dpkg/dpkg.cfg.d/01-athena-slim" <<'DPKG'
+cat >"$ROOT/etc/dpkg/dpkg.cfg.d/01-athena-slim" <<'DPKG'
 
 path-exclude=/usr/share/doc/*
 
@@ -72,7 +90,7 @@ path-include=/usr/share/locale/en_GB/*
 
 DPKG
 
-cat > "$ROOT/usr/sbin/policy-rc.d" <<'POLICY'
+cat >"$ROOT/usr/sbin/policy-rc.d" <<'POLICY'
 
 #!/bin/sh
 
@@ -124,7 +142,7 @@ chroot "$ROOT" passwd -l athena >/dev/null
 
 chroot "$ROOT" passwd -l root >/dev/null
 
-echo athena > "$ROOT/etc/hostname"
+echo athena >"$ROOT/etc/hostname"
 
 rm -f "$ROOT/etc/resolv.conf"
 
@@ -132,7 +150,7 @@ ln -s /run/systemd/resolve/stub-resolv.conf "$ROOT/etc/resolv.conf"
 
 install -d -m 0755 "$ROOT/etc/systemd/logind.conf.d"
 
-cat > "$ROOT/etc/systemd/logind.conf.d/athena.conf" <<'LOGIND'
+cat >"$ROOT/etc/systemd/logind.conf.d/athena.conf" <<'LOGIND'
 
 [Login]
 
@@ -144,7 +162,7 @@ LOGIND
 
 install -d -m 0755 "$ROOT/etc/systemd/journald.conf.d"
 
-cat > "$ROOT/etc/systemd/journald.conf.d/athena.conf" <<'JOURNAL'
+cat >"$ROOT/etc/systemd/journald.conf.d/athena.conf" <<'JOURNAL'
 
 [Journal]
 
@@ -158,7 +176,7 @@ JOURNAL
 
 say "Writing first-boot init, Phosh display configuration and serial-console setup"
 
-cat > "$ROOT/init" <<'INIT'
+cat >"$ROOT/init" <<'INIT'
 
 #!/bin/sh
 
@@ -189,7 +207,7 @@ install -d -m 0755 "$ROOT/usr/local/sbin" \
 	"$ROOT/etc/systemd/system/serial-getty@ttyS0.service.d" \
 	"$ROOT/etc/systemd/system/serial-getty@ttyGS0.service.d"
 
-cat > "$ROOT/etc/udev/rules.d/70-athena-drm.rules" <<'UDEV'
+cat >"$ROOT/etc/udev/rules.d/70-athena-drm.rules" <<'UDEV'
 
 SUBSYSTEM=="drm", KERNEL=="card[0-9]*", GROUP="video", MODE="0660"
 
@@ -201,7 +219,7 @@ UDEV
 
 bash "$DESKTOP_DIR/configure.sh" "$ROOT"
 
-cat > "$ROOT/usr/local/sbin/athena-set-identity" <<'IDENTITY'
+cat >"$ROOT/usr/local/sbin/athena-set-identity" <<'IDENTITY'
 
 #!/bin/sh
 
@@ -235,7 +253,7 @@ IDENTITY
 
 chmod 755 "$ROOT/usr/local/sbin/athena-set-identity"
 
-cat > "$ROOT/etc/systemd/system/athena-set-identity.service" <<'UNIT'
+cat >"$ROOT/etc/systemd/system/athena-set-identity.service" <<'UNIT'
 
 [Unit]
 
@@ -263,7 +281,7 @@ WantedBy=multi-user.target
 
 UNIT
 
-cat > "$ROOT/usr/local/sbin/athena-root-grow" <<'GROW'
+cat >"$ROOT/usr/local/sbin/athena-root-grow" <<'GROW'
 
 #!/bin/sh
 
@@ -289,7 +307,7 @@ GROW
 
 chmod 755 "$ROOT/usr/local/sbin/athena-root-grow"
 
-cat > "$ROOT/etc/systemd/system/athena-root-grow.service" <<UNIT
+cat >"$ROOT/etc/systemd/system/athena-root-grow.service" <<UNIT
 
 [Unit]
 
@@ -315,7 +333,7 @@ WantedBy=multi-user.target
 
 UNIT
 
-cat > "$ROOT/usr/local/sbin/athena-power-action" <<'POWER'
+cat >"$ROOT/usr/local/sbin/athena-power-action" <<'POWER'
 
 #!/bin/sh
 
@@ -365,7 +383,7 @@ POWER
 
 chmod 755 "$ROOT/usr/local/sbin/athena-power-action"
 
-cat > "$ROOT/etc/sudoers.d/athena-actions" <<'SUDOERS'
+cat >"$ROOT/etc/sudoers.d/athena-actions" <<'SUDOERS'
 
 athena ALL=(root) NOPASSWD: /usr/local/sbin/athena-power-action poweroff, /usr/local/sbin/athena-power-action reboot, /usr/local/sbin/athena-power-action recovery
 
@@ -373,7 +391,7 @@ SUDOERS
 
 chmod 440 "$ROOT/etc/sudoers.d/athena-actions"
 
-cat > "$ROOT/usr/share/applications/athena-recovery.desktop" <<'DESKTOP'
+cat >"$ROOT/usr/share/applications/athena-recovery.desktop" <<'DESKTOP'
 
 [Desktop Entry]
 
@@ -391,7 +409,7 @@ Categories=System;
 
 DESKTOP
 
-cat > "$ROOT/usr/share/applications/athena-poweroff.desktop" <<'DESKTOP'
+cat >"$ROOT/usr/share/applications/athena-poweroff.desktop" <<'DESKTOP'
 
 [Desktop Entry]
 
@@ -411,7 +429,7 @@ DESKTOP
 
 chroot "$ROOT" dconf update
 
-cat > "$ROOT/usr/local/sbin/athena-audio-init" <<'AUDIOINIT'
+cat >"$ROOT/usr/local/sbin/athena-audio-init" <<'AUDIOINIT'
 
 #!/bin/sh
 
@@ -465,7 +483,7 @@ AUDIOINIT
 
 chmod 755 "$ROOT/usr/local/sbin/athena-audio-init"
 
-cat > "$ROOT/etc/systemd/system/athena-audio-init.service" <<'UNIT'
+cat >"$ROOT/etc/systemd/system/athena-audio-init.service" <<'UNIT'
 
 [Unit]
 
@@ -489,7 +507,7 @@ WantedBy=multi-user.target
 
 UNIT
 
-cat > "$ROOT/usr/local/sbin/athena-volume-key" <<'VOLUMEKEY'
+cat >"$ROOT/usr/local/sbin/athena-volume-key" <<'VOLUMEKEY'
 
 #!/bin/sh
 
@@ -525,7 +543,7 @@ chmod 755 "$ROOT/usr/local/sbin/athena-volume-key"
 
 install -d -m 0755 "$ROOT/etc/sudoers.d"
 
-cat > "$ROOT/etc/sudoers.d/athena-volume-key" <<'SUDOERS'
+cat >"$ROOT/etc/sudoers.d/athena-volume-key" <<'SUDOERS'
 
 nobody ALL=(root) NOPASSWD: /usr/local/sbin/athena-volume-key up, /usr/local/sbin/athena-volume-key down
 
@@ -533,7 +551,7 @@ SUDOERS
 
 chmod 440 "$ROOT/etc/sudoers.d/athena-volume-key"
 
-cat > "$ROOT/etc/triggerhappy/triggers.d/athena-volume.conf" <<'TRIGGERS'
+cat >"$ROOT/etc/triggerhappy/triggers.d/athena-volume.conf" <<'TRIGGERS'
 
 KEY_VOLUMEUP 1 /usr/bin/sudo -n /usr/local/sbin/athena-volume-key up
 
@@ -541,7 +559,7 @@ KEY_VOLUMEDOWN 1 /usr/bin/sudo -n /usr/local/sbin/athena-volume-key down
 
 TRIGGERS
 
-cat > "$ROOT/usr/local/sbin/athena-usb-console" <<'USB'
+cat >"$ROOT/usr/local/sbin/athena-usb-console" <<'USB'
 
 #!/bin/sh
 
@@ -593,7 +611,7 @@ USB
 
 chmod 755 "$ROOT/usr/local/sbin/athena-usb-console"
 
-cat > "$ROOT/etc/systemd/system/sys-kernel-config.mount" <<'MOUNT'
+cat >"$ROOT/etc/systemd/system/sys-kernel-config.mount" <<'MOUNT'
 
 [Unit]
 
@@ -617,7 +635,7 @@ WantedBy=multi-user.target
 
 MOUNT
 
-cat > "$ROOT/etc/systemd/system/athena-usb-console.service" <<'UNIT'
+cat >"$ROOT/etc/systemd/system/athena-usb-console.service" <<'UNIT'
 
 [Unit]
 
@@ -641,7 +659,7 @@ WantedBy=multi-user.target
 
 UNIT
 
-cat > "$ROOT/etc/systemd/system/serial-getty@ttyS0.service.d/autologin.conf" <<'GETTY'
+cat >"$ROOT/etc/systemd/system/serial-getty@ttyS0.service.d/autologin.conf" <<'GETTY'
 
 [Service]
 
@@ -651,7 +669,7 @@ ExecStart=-/sbin/agetty --autologin athena --keep-baud 921600 ttyS0 vt100
 
 GETTY
 
-cat > "$ROOT/etc/systemd/system/serial-getty@ttyGS0.service.d/usb-console.conf" <<'GETTY'
+cat >"$ROOT/etc/systemd/system/serial-getty@ttyGS0.service.d/usb-console.conf" <<'GETTY'
 
 [Unit]
 

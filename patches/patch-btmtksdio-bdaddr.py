@@ -11,6 +11,7 @@ of every setup, whenever one has been set. Nothing changes until userspace sets 
 
 Usage: patch-btmtksdio-bdaddr.py KTREE   (idempotent)
 """
+
 import sys
 
 tree = sys.argv[1]
@@ -30,14 +31,17 @@ def edit(path, pairs):
     print(path + ": patched")
 
 
-edit("drivers/bluetooth/btmtksdio.c", [
-    ("""	default:
+edit(
+    "drivers/bluetooth/btmtksdio.c",
+    [
+        (
+            """	default:
 		return -ENODEV;
 	}
 
 	rettime = ktime_get();
 """,
-     """	default:
+            """	default:
 		return -ENODEV;
 	}
 
@@ -53,5 +57,7 @@ edit("drivers/bluetooth/btmtksdio.c", [
 	}
 
 	rettime = ktime_get();
-"""),
-])
+""",
+        ),
+    ],
+)

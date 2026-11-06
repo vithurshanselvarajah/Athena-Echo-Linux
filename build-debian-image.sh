@@ -12,7 +12,10 @@ CACHE_DIR=${CACHE_DIR:-${XDG_CACHE_HOME:-$HOME/.cache}/athena/debian-arm64}
 
 IMAGE=athena-rootfs-builder:debian13
 
-command -v docker >/dev/null || { echo "Docker is required to build the Debian arm64 image" >&2; exit 1; }
+command -v docker >/dev/null || {
+	echo "Docker is required to build the Debian arm64 image" >&2
+	exit 1
+}
 
 log() { printf '[%s] %s\n' "$(date '+%H:%M:%S')" "$*"; }
 
@@ -36,6 +39,9 @@ docker run --rm --platform linux/arm64 \
 	"$IMAGE" bash /src/image/debian-arm64/mkrootfs.sh \
 	-o "/out/$(basename "$OUT")" -w /work -s "$SIZE"
 
-[ -s "$OUT" ] || { echo "system image was not created: $OUT" >&2; exit 1; }
+[ -s "$OUT" ] || {
+	echo "system image was not created: $OUT" >&2
+	exit 1
+}
 
 log "Built image: $OUT ($(du -h "$OUT" | cut -f1))"

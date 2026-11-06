@@ -39,16 +39,14 @@ p = tree + "/drivers/thermal/mediatek/auxadc_thermal.c"
 s = open(p).read()
 
 if MARK in s:
-
     print(p + ": already patched")
 
     sys.exit(0)
 
 pairs = [
-
-    ("static int mtk_thermal_get_calibration_data(struct device *dev,\n",
-
-     """/* athena: devinfo calibration. Amazon's secure firmware hides the efuse
+    (
+        "static int mtk_thermal_get_calibration_data(struct device *dev,\n",
+        """/* athena: devinfo calibration. Amazon's secure firmware hides the efuse
 
  * from Linux (it reads as zeros), but LK copies it into /chosen as
 
@@ -88,9 +86,10 @@ static void mtk_thermal_devinfo_calibration(struct device *dev, u32 *buf)
 
 static int mtk_thermal_get_calibration_data(struct device *dev,
 
-"""),
-
-    ("""	if (len < 3 * sizeof(u32)) {
+""",
+    ),
+    (
+        """	if (len < 3 * sizeof(u32)) {
 
 		dev_warn(dev, "invalid calibration data\\n");
 
@@ -101,8 +100,7 @@ static int mtk_thermal_get_calibration_data(struct device *dev,
 	}
 
 """,
-
-     """	if (len < 3 * sizeof(u32)) {
+        """	if (len < 3 * sizeof(u32)) {
 
 		dev_warn(dev, "invalid calibration data\\n");
 
@@ -116,12 +114,11 @@ static int mtk_thermal_get_calibration_data(struct device *dev,
 
 		mtk_thermal_devinfo_calibration(dev, buf);
 
-"""),
-
+""",
+    ),
 ]
 
 for a, b in pairs:
-
     assert s.count(a) == 1, (a, s.count(a))
 
     s = s.replace(a, b)

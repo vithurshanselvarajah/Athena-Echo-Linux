@@ -43,18 +43,21 @@ p = tree + "/drivers/bluetooth/btmtksdio.c"
 s = open(p).read()
 
 if MARK in s:
-
     print(p + ": already patched")
 
     sys.exit(0)
 
-assert "athena: wait for Wi-Fi" not in s, "check the file out first: the open-sleep patch is in it"
+assert "athena: wait for Wi-Fi" not in s, (
+    "check the file out first: the open-sleep patch is in it"
+)
 
 a = "module_sdio_driver(btmtksdio_driver);\n"
 
 assert s.count(a) == 1, a
 
-s = s.replace(a, """/* athena: register late. Wi-Fi (mt7663s) starts the shared MT7663 in the first seconds of boot;
+s = s.replace(
+    a,
+    """/* athena: register late. Wi-Fi (mt7663s) starts the shared MT7663 in the first seconds of boot;
 
  * Bluetooth enabling its function at the same time left the chip answering neither driver on some
 
@@ -104,11 +107,15 @@ static void __exit btmtksdio_exit(void)
 
 module_exit(btmtksdio_exit);
 
-""")
+""",
+)
 
 if "#include <linux/workqueue.h>" not in s:
-
-    s = s.replace("#include <linux/gpio/consumer.h>\n", "#include <linux/gpio/consumer.h>\n#include <linux/workqueue.h>\n", 1)
+    s = s.replace(
+        "#include <linux/gpio/consumer.h>\n",
+        "#include <linux/gpio/consumer.h>\n#include <linux/workqueue.h>\n",
+        1,
+    )
 
 open(p, "w").write(s)
 

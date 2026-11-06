@@ -15,6 +15,7 @@ then fixes the boot image header's SHA-1 id. patches/patch-tas5805m-dsp-slot.py 
     dsp_slot.py empty OUT.bin     write an empty slot (build.sh does this for the DTS /incbin/)
     dsp_slot.py show FILE         find the slot in FILE (a boot image, DTB or slot) and describe it
 """
+
 import hashlib
 import struct
 import sys
@@ -44,8 +45,8 @@ def parse_slot(slot):
     digest = slot[12:HDR_SIZE]
     if n > MAX_DATA or n % 2:
         raise ValueError("bad data length %d" % n)
-    data = slot[HDR_SIZE:HDR_SIZE + n]
-    if any(slot[HDR_SIZE + n:]):
+    data = slot[HDR_SIZE : HDR_SIZE + n]
+    if any(slot[HDR_SIZE + n :]):
         raise ValueError("padding after the data is not zero")
     if n == 0:
         if any(digest):
@@ -63,7 +64,7 @@ def find_slot(blob):
     off = blob.index(MAGIC)
     if off + SLOT_SIZE > len(blob):
         raise ValueError("slot runs past the end of the file")
-    return off, blob[off:off + SLOT_SIZE]
+    return off, blob[off : off + SLOT_SIZE]
 
 
 def main(argv):
@@ -76,8 +77,16 @@ def main(argv):
             blob = f.read()
         off, slot = find_slot(blob)
         data = parse_slot(slot)
-        print("slot at offset %d: N=%d%s" % (off, len(data), " (empty)" if not data else
-                                              ", sha256 " + hashlib.sha256(data).hexdigest()))
+        print(
+            "slot at offset %d: N=%d%s"
+            % (
+                off,
+                len(data),
+                " (empty)"
+                if not data
+                else ", sha256 " + hashlib.sha256(data).hexdigest(),
+            )
+        )
         return 0
     print("usage: dsp_slot.py empty OUT.bin | dsp_slot.py show FILE", file=sys.stderr)
     return 2

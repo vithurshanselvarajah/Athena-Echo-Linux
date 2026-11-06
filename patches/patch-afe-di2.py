@@ -29,6 +29,7 @@ d = tree + "/sound/soc/mediatek/mt8183/"
 
 MARK = "athena: I2S2 DI2"
 
+
 def edit(path, pairs):
 
     p = d + path
@@ -36,16 +37,16 @@ def edit(path, pairs):
     s = open(p).read()
 
     if MARK in s:
-
         return
 
     for a, b in pairs:
-
         lines = [line.strip() for line in a.splitlines() if line.strip()]
 
-        pattern = r"(?m)^[ \t]*" + r"[ \t]*\n(?:[ \t]*\n)*[ \t]*".join(
-            re.escape(line) for line in lines
-        ) + r"[ \t]*"
+        pattern = (
+            r"(?m)^[ \t]*"
+            + r"[ \t]*\n(?:[ \t]*\n)*[ \t]*".join(re.escape(line) for line in lines)
+            + r"[ \t]*"
+        )
 
         replacement = "\n".join(line for line in b.splitlines() if line.strip())
 
@@ -55,23 +56,25 @@ def edit(path, pairs):
 
     open(p, "w").write(s)
 
-edit("mt8183-interconnection.h", [(
 
-    "#define I_I2S2_CH2 26\n",
+edit(
+    "mt8183-interconnection.h",
+    [
+        (
+            "#define I_I2S2_CH2 26\n",
+            "#define I_I2S2_CH2 26\n"
+            "/* athena: I2S2 DI2, the second I2S2 data input (stock calls it I2S2_ADC2) */\n"
+            "#define I_I2S2_CH3 27\n"
+            "#define I_I2S2_CH4 28\n",
+        )
+    ],
+)
 
-    "#define I_I2S2_CH2 26\n"
-
-    "/* athena: I2S2 DI2, the second I2S2 data input (stock calls it I2S2_ADC2) */\n"
-
-    "#define I_I2S2_CH3 27\n"
-
-    "#define I_I2S2_CH4 28\n",
-
-)])
-
-edit("mt8183-dai-i2s.c", [(
-
-    '''		.name = "I2S2",
+edit(
+    "mt8183-dai-i2s.c",
+    [
+        (
+            """		.name = "I2S2",
 
 		.id = MT8183_DAI_I2S_2,
 
@@ -81,9 +84,8 @@ edit("mt8183-dai-i2s.c", [(
 
 			.channels_min = 1,
 
-			.channels_max = 2,''',
-
-    '''		.name = "I2S2",
+			.channels_max = 2,""",
+            """		.name = "I2S2",
 
 		.id = MT8183_DAI_I2S_2,
 
@@ -95,13 +97,16 @@ edit("mt8183-dai-i2s.c", [(
 
 			/* athena: I2S2 DI2 carries ch3/ch4 */
 
-			.channels_max = 4,''',
+			.channels_max = 4,""",
+        )
+    ],
+)
 
-)])
-
-edit("mt8183-afe-pcm.c", [
-
-    ('''		.name = "UL1",
+edit(
+    "mt8183-afe-pcm.c",
+    [
+        (
+            """		.name = "UL1",
 
 		.id = MT8183_MEMIF_VUL12,
 
@@ -111,9 +116,8 @@ edit("mt8183-afe-pcm.c", [
 
 			.channels_min = 1,
 
-			.channels_max = 2,''',
-
-     '''		.name = "UL1",
+			.channels_max = 2,""",
+            """		.name = "UL1",
 
 		.id = MT8183_MEMIF_VUL12,
 
@@ -125,9 +129,10 @@ edit("mt8183-afe-pcm.c", [
 
 			/* athena: I2S2 DI2, VUL12 has a 4-channel mode */
 
-			.channels_max = 4,'''),
-
-    ('''static const struct snd_kcontrol_new memif_ul1_ch1_mix[] = {
+			.channels_max = 4,""",
+        ),
+        (
+            """static const struct snd_kcontrol_new memif_ul1_ch1_mix[] = {
 
 	SOC_DAPM_SINGLE_AUTODISABLE("ADDA_UL_CH1", AFE_CONN21,
 
@@ -151,9 +156,8 @@ static const struct snd_kcontrol_new memif_ul1_ch2_mix[] = {
 
 };
 
-''',
-
-     '''static const struct snd_kcontrol_new memif_ul1_ch1_mix[] = {
+""",
+            """static const struct snd_kcontrol_new memif_ul1_ch1_mix[] = {
 
 	SOC_DAPM_SINGLE_AUTODISABLE("ADDA_UL_CH1", AFE_CONN21,
 
@@ -221,15 +225,15 @@ static const struct snd_kcontrol_new memif_ul1_ch4_mix[] = {
 
 };
 
-'''),
-
-    ('''	SND_SOC_DAPM_MIXER("UL1_CH2", SND_SOC_NOPM, 0, 0,
+""",
+        ),
+        (
+            """	SND_SOC_DAPM_MIXER("UL1_CH2", SND_SOC_NOPM, 0, 0,
 
 			   memif_ul1_ch2_mix, ARRAY_SIZE(memif_ul1_ch2_mix)),
 
-''',
-
-     '''	SND_SOC_DAPM_MIXER("UL1_CH2", SND_SOC_NOPM, 0, 0,
+""",
+            """	SND_SOC_DAPM_MIXER("UL1_CH2", SND_SOC_NOPM, 0, 0,
 
 			   memif_ul1_ch2_mix, ARRAY_SIZE(memif_ul1_ch2_mix)),
 
@@ -241,15 +245,15 @@ static const struct snd_kcontrol_new memif_ul1_ch4_mix[] = {
 
 			   memif_ul1_ch4_mix, ARRAY_SIZE(memif_ul1_ch4_mix)),
 
-'''),
-
-    ('''	{"UL1_CH1", "I2S0_CH1", "I2S0"},
+""",
+        ),
+        (
+            """	{"UL1_CH1", "I2S0_CH1", "I2S0"},
 
 	{"UL1_CH2", "I2S0_CH2", "I2S0"},
 
-''',
-
-     '''	{"UL1_CH1", "I2S0_CH1", "I2S0"},
+""",
+            """	{"UL1_CH1", "I2S0_CH1", "I2S0"},
 
 	{"UL1_CH2", "I2S0_CH2", "I2S0"},
 
@@ -273,16 +277,16 @@ static const struct snd_kcontrol_new memif_ul1_ch4_mix[] = {
 
 	{"UL1_CH4", "I2S2_CH4", "I2S2"},
 
-'''),
-
-])
+""",
+        ),
+    ],
+)
 
 p = d + "mt8183-afe-pcm.c"
 
 s = open(p).read()
 
 if "VUL12_4CH_MASK" not in s:
-
     a = "static const struct mtk_base_memif_data memif_data[MT8183_MEMIF_NUM] = {"
 
     assert s.count(a) == 1
@@ -293,7 +297,10 @@ if "VUL12_4CH_MASK" not in s:
 
     assert s.count(hook) == 1, "memif_size hook"
 
-    s = s.replace(hook, hook + '''	/* athena: I2S2 DI2, VUL12's 4-channel mode (stock writes 0x3d8 bit 17) */
+    s = s.replace(
+        hook,
+        hook
+        + """	/* athena: I2S2 DI2, VUL12's 4-channel mode (stock writes 0x3d8 bit 17) */
 
 	memif_data[MT8183_MEMIF_VUL12].quad_ch_reg = AFE_MEMIF_PBUF_SIZE;
 
@@ -301,7 +308,9 @@ if "VUL12_4CH_MASK" not in s:
 
 	memif_data[MT8183_MEMIF_VUL12].quad_ch_shift = VUL12_4CH_SFT;
 
-''', 1)
+""",
+        1,
+    )
 
     open(p, "w").write(s)
 

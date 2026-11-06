@@ -47,11 +47,11 @@ else
 fi
 
 CONTAINER=$(docker create --rm --name athena-kbuild \
-    -v "$ROOT:/repo:ro" \
-    "${WORK_MOUNT[@]}" \
-    -v "$OUT:/out" \
-    -e WORK=/athena-kbuild -e OUT=/out -e JOBS="${JOBS:-4}" \
-    "$IMAGE" bash /repo/build.sh)
+	-v "$ROOT:/repo:ro" \
+	"${WORK_MOUNT[@]}" \
+	-v "$OUT:/out" \
+	-e WORK=/athena-kbuild -e OUT=/out -e JOBS="${JOBS:-4}" \
+	"$IMAGE" bash /repo/build.sh)
 
 trap 'docker rm -f athena-kbuild >/dev/null 2>&1 || true' EXIT
 

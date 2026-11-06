@@ -22,6 +22,7 @@ Bluetooth, finds them held. About 1.2 MB of memory stays allocated.
 
 Usage: patch-mt7663s-firmware-hold.py KTREE   (idempotent)
 """
+
 import sys
 
 tree = sys.argv[1]
@@ -33,10 +34,13 @@ if MARK in s:
     sys.exit(0)
 
 pairs = [
-    ("#include <linux/kernel.h>\n",
-     "#include <linux/firmware.h>\n#include <linux/kernel.h>\n"),
-    ("module_sdio_driver(mt7663s_driver);\n",
-     """/* athena: hold firmware. The firmware comes from the initramfs, which the
+    (
+        "#include <linux/kernel.h>\n",
+        "#include <linux/firmware.h>\n#include <linux/kernel.h>\n",
+    ),
+    (
+        "module_sdio_driver(mt7663s_driver);\n",
+        """/* athena: hold firmware. The firmware comes from the initramfs, which the
  * real root replaces after the initcalls. Load it here, while it is still
  * there, and keep it: later requests by name (the init work below, btmtksdio)
  * share the held copy instead of looking on the real root.
@@ -77,7 +81,8 @@ static void __exit mt7663s_exit(void)
 		release_firmware(mt7663s_held_fw[i]);
 }
 module_exit(mt7663s_exit);
-"""),
+""",
+    ),
 ]
 for a, b in pairs:
     assert s.count(a) == 1, (a, s.count(a))

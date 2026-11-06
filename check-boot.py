@@ -39,21 +39,15 @@ import pack
 FDT_MAGIC = 0xD00DFEED
 
 RAMDISK_FILES = {
-
     "LICENCE.mediatek",
-
     "mediatek/mt7663_n9_rebb.bin",
-
     "mediatek/mt7663_n9_v3.bin",
-
     "mediatek/mt7663pr2h.bin",
-
     "mediatek/mt7663pr2h_rebb.bin",
-
 }
 
-def gunzip_all(data):
 
+def gunzip_all(data):
     """Decompress one gzip member; return (decompressed, bytes after it)."""
 
     d = zlib.decompressobj(16 + zlib.MAX_WBITS)
@@ -61,13 +55,12 @@ def gunzip_all(data):
     out = d.decompress(data)
 
     if not d.eof:
-
         raise ValueError("gzip stream does not end")
 
     return out, d.unused_data
 
-def cpio_entries(cpio):
 
+def cpio_entries(cpio):
     """newc cpio -> {name: (mode, data)}. Raises ValueError on a malformed archive."""
 
     entries = {}
@@ -75,38 +68,35 @@ def cpio_entries(cpio):
     p = 0
 
     while True:
-
-        if cpio[p:p + 6] != b"070701":
-
+        if cpio[p : p + 6] != b"070701":
             raise ValueError("bad cpio header at %d" % p)
 
-        f = [int(cpio[p + 6 + 8 * i:p + 14 + 8 * i], 16) for i in range(13)]
+        f = [int(cpio[p + 6 + 8 * i : p + 14 + 8 * i], 16) for i in range(13)]
 
         mode, filesize, namesize = f[1], f[6], f[11]
 
-        name = cpio[p + 110:p + 110 + namesize - 1].decode()
+        name = cpio[p + 110 : p + 110 + namesize - 1].decode()
 
         p += 110 + namesize
 
         p += -p % 4
 
-        data = cpio[p:p + filesize]
+        data = cpio[p : p + filesize]
 
         p += filesize
 
         p += -p % 4
 
         if name == "TRAILER!!!":
-
             break
 
         entries[name] = (mode, data)
 
     if any(cpio[p:]):
-
         raise ValueError("data after the cpio trailer")
 
     return entries
+
 
 def check(img, filled=False):
 
@@ -115,18 +105,33 @@ def check(img, filled=False):
     def want(cond, msg):
 
         if not cond:
-
             errors.append(msg)
 
     if len(img) < pack.PAGE_SIZE:
-
         return ["shorter than one page"], None
 
     f = struct.unpack_from("<8s10I16s512s32s1024sIQI", img, 0)
 
-    (magic, ksize, kaddr, rsize, raddr, ssize, saddr, tags, page, hv, osv,
-
-     name, cmd, digest, extra, dtbo_size, dtbo_off, hsize) = f
+    (
+        magic,
+        ksize,
+        kaddr,
+        rsize,
+        raddr,
+        ssize,
+        saddr,
+        tags,
+        page,
+        hv,
+        osv,
+        name,
+        cmd,
+        digest,
+        extra,
+        dtbo_size,
+        dtbo_off,
+        hsize,
+    ) = f
 
     want(magic == pack.BOOT_MAGIC, "magic %r" % magic)
 
@@ -150,15 +155,22 @@ def check(img, filled=False):
 
     want(name == pack.BOARD_NAME.ljust(16, b"\0"), "name %r" % name)
 
-    want(cmd == pack.CMDLINE.encode().ljust(512, b"\0"), "cmdline %r" % cmd.rstrip(b"\0"))
+    want(
+        cmd == pack.CMDLINE.encode().ljust(512, b"\0"), "cmdline %r" % cmd.rstrip(b"\0")
+    )
 
     want(extra == pack.EXTRA_CMDLINE.encode().ljust(1024, b"\0"), "extra_cmdline")
 
-    want(dtbo_size == 0 and dtbo_off == 0, "recovery_dtbo %d@%d" % (dtbo_size, dtbo_off))
+    want(
+        dtbo_size == 0 and dtbo_off == 0, "recovery_dtbo %d@%d" % (dtbo_size, dtbo_off)
+    )
 
     want(hsize == pack.HEADER_SIZE, "header_size %d" % hsize)
 
-    want(not any(img[pack.HEADER_SIZE:pack.PAGE_SIZE]), "header page padding is not zero")
+    want(
+        not any(img[pack.HEADER_SIZE : pack.PAGE_SIZE]),
+        "header page padding is not zero",
+    )
 
     k_at = pack.PAGE_SIZE
 
@@ -166,61 +178,68 @@ def check(img, filled=False):
 
     end = r_at + pack.pad(rsize)
 
-    kernel = img[k_at:k_at + ksize]
+    kernel = img[k_at : k_at + ksize]
 
-    ramdisk = img[r_at:r_at + rsize]
+    ramdisk = img[r_at : r_at + rsize]
 
     want(len(img) == end, "image size %d, expected %d" % (len(img), end))
 
     want(len(kernel) == ksize and len(ramdisk) == rsize, "image ends early")
 
-    want(not any(img[k_at + ksize:r_at]), "padding after the kernel is not zero")
+    want(not any(img[k_at + ksize : r_at]), "padding after the kernel is not zero")
 
-    want(not any(img[r_at + rsize:]), "padding after the ramdisk is not zero")
+    want(not any(img[r_at + rsize :]), "padding after the ramdisk is not zero")
 
-    want(digest == pack.image_id(kernel, ramdisk).ljust(32, b"\0"),
-
-         "SHA-1 id does not match the contents")
+    want(
+        digest == pack.image_id(kernel, ramdisk).ljust(32, b"\0"),
+        "SHA-1 id does not match the contents",
+    )
 
     want(len(img) <= pack.BOOT_PARTITION_SIZE, "larger than the boot partition")
 
     try:
-
         vmlinux, dtb = gunzip_all(kernel)
 
     except (zlib.error, ValueError) as e:
-
         return errors + ["Image.gz: %s" % e], None
 
     gz_len = len(kernel) - len(dtb)
 
     want(vmlinux[56:60] == b"ARM\x64", "decompressed kernel is not an arm64 Image")
 
-    want(len(dtb) >= 40 and struct.unpack_from(">I", dtb, 0)[0] == FDT_MAGIC, "no FDT after Image.gz")
+    want(
+        len(dtb) >= 40 and struct.unpack_from(">I", dtb, 0)[0] == FDT_MAGIC,
+        "no FDT after Image.gz",
+    )
 
     if len(dtb) >= 8:
-
-        want(struct.unpack_from(">I", dtb, 4)[0] == len(dtb), "FDT totalsize does not match")
+        want(
+            struct.unpack_from(">I", dtb, 4)[0] == len(dtb),
+            "FDT totalsize does not match",
+        )
 
     want(dsp_slot.MAGIC not in vmlinux, "slot magic found in the decompressed kernel")
 
     try:
-
         cpio, rest = gunzip_all(ramdisk)
 
         want(not rest, "data after the ramdisk's gzip stream")
 
         ents = cpio_entries(cpio)
 
-        files = {n[len("lib/firmware/"):] for n, (m, _) in ents.items()
-
-                 if m & 0o170000 == 0o100000 and n.startswith("lib/firmware/")}
+        files = {
+            n[len("lib/firmware/") :]
+            for n, (m, _) in ents.items()
+            if m & 0o170000 == 0o100000 and n.startswith("lib/firmware/")
+        }
 
         want(files == RAMDISK_FILES, "ramdisk files %s" % sorted(files))
 
-        others = [n for n, (m, _) in ents.items()
-
-                  if m & 0o170000 != 0o040000 and not n.startswith("lib/firmware/")]
+        others = [
+            n
+            for n, (m, _) in ents.items()
+            if m & 0o170000 != 0o040000 and not n.startswith("lib/firmware/")
+        ]
 
         want(not others, "ramdisk has other entries: %s" % others)
 
@@ -229,32 +248,33 @@ def check(img, filled=False):
         want(dsp_slot.MAGIC not in cpio, "slot magic found in the ramdisk")
 
     except (zlib.error, ValueError, UnicodeDecodeError) as e:
-
         errors.append("ramdisk: %s" % e)
 
-    want(img.count(dsp_slot.MAGIC) == 1, "slot magic found %d times in the image, expected once"
-
-         % img.count(dsp_slot.MAGIC))
+    want(
+        img.count(dsp_slot.MAGIC) == 1,
+        "slot magic found %d times in the image, expected once"
+        % img.count(dsp_slot.MAGIC),
+    )
 
     data = None
 
     try:
-
         off, slot = dsp_slot.find_slot(img)
 
-        want(off >= k_at + gz_len and off + dsp_slot.SLOT_SIZE <= k_at + ksize,
-
-             "slot is not inside the DTB")
+        want(
+            off >= k_at + gz_len and off + dsp_slot.SLOT_SIZE <= k_at + ksize,
+            "slot is not inside the DTB",
+        )
 
         data = dsp_slot.parse_slot(slot)
 
         want(filled or not data, "slot is not empty (N=%d)" % len(data))
 
     except ValueError as e:
-
         errors.append("slot: %s" % e)
 
     return errors, data
+
 
 def main(argv):
 
@@ -265,33 +285,34 @@ def main(argv):
     args = [a for a in args if a != "--filled"]
 
     if len(args) != 1:
-
         print("usage: check-boot.py [--filled] boot.img", file=sys.stderr)
 
         return 2
 
     with open(args[0], "rb") as f:
-
         img = f.read()
 
     errors, data = check(img, filled)
 
     for e in errors:
-
         print("FAIL:", e)
 
     if errors:
-
         return 1
 
-    print("OK: %s, %d bytes, header v%d, ramdisk %d bytes, slot %s" % (
-
-        args[0], len(img), pack.HEADER_VERSION, struct.unpack_from("<I", img, 16)[0],
-
-        "empty" if not data else "holds %d bytes" % len(data)))
+    print(
+        "OK: %s, %d bytes, header v%d, ramdisk %d bytes, slot %s"
+        % (
+            args[0],
+            len(img),
+            pack.HEADER_VERSION,
+            struct.unpack_from("<I", img, 16)[0],
+            "empty" if not data else "holds %d bytes" % len(data),
+        )
+    )
 
     return 0
 
-if __name__ == "__main__":
 
+if __name__ == "__main__":
     sys.exit(main(sys.argv))

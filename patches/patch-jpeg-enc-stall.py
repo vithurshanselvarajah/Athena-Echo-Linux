@@ -13,6 +13,7 @@ encode the picture again with a bigger buffer, or another way).
 
 Usage: patch-jpeg-enc-stall.py KTREE   (idempotent)
 """
+
 import sys
 
 tree = sys.argv[1]
