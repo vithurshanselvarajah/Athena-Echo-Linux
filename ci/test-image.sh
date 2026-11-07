@@ -80,7 +80,7 @@ grep -q '^ExecStartPost=+chvt 7$' "$rootfs/usr/lib/systemd/system/phosh.service"
 test -f "$rootfs/usr/share/applications/athena-recovery.desktop"
 test -f "$rootfs/usr/share/applications/athena-poweroff.desktop"
 test -f "$rootfs/etc/triggerhappy/triggers.d/athena-volume.conf"
-grep -q 'ATTRS{name}=="mtk-pmic-keys".*LIBINPUT_IGNORE_DEVICE="1"' "$rootfs/etc/udev/rules.d/70-athena-drm.rules"
+grep -q 'ATTRS{name}=="mtk-pmic-keys".*ENV{LIBINPUT_IGNORE_DEVICE}="1"' "$rootfs/etc/udev/rules.d/70-athena-drm.rules"
 grep -q '^KEY_MICMUTE 1 /usr/bin/sudo -n /usr/local/sbin/athena-micmute-key$' "$rootfs/etc/triggerhappy/triggers.d/athena-volume.conf"
 test -f "$rootfs/usr/share/alsa/ucm2/conf.d/mt8183_athena/mt8183_athena.conf"
 test -f "$rootfs/usr/share/alsa/ucm2/conf.d/mt8183_athena/HiFi.conf"
@@ -88,7 +88,9 @@ grep -q 'CapturePCM "hw:${CardId},2"' "$rootfs/usr/share/alsa/ucm2/conf.d/mt8183
 grep -qx 'athena ALL=(ALL:ALL) NOPASSWD: ALL' "$rootfs/etc/sudoers.d/athena-admin"
 grep -q 'PARTLABEL=misc' "$rootfs/usr/local/sbin/athena-power-action"
 test -x "$rootfs/usr/bin/gsettings"
-test -e "$rootfs/usr/share/applications/sm.puri.OSK0.desktop"
+test "$(readlink "$rootfs/usr/share/applications/sm.puri.OSK0.desktop")" = /etc/alternatives/Phosh-OSK
+test "$(readlink "$rootfs/etc/alternatives/Phosh-OSK")" = /usr/share/applications/sm.puri.Squeekboard.desktop
+test -f "$rootfs/usr/share/applications/sm.puri.Squeekboard.desktop"
 
 dpkg-query --admindir="$rootfs/var/lib/dpkg" -W -f='${db:Status-Status}\n' phosh | grep -qx installed
 dpkg-query --admindir="$rootfs/var/lib/dpkg" -W -f='${db:Status-Status}\n' gnome-control-center | grep -qx installed
