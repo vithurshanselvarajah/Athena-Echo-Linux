@@ -77,6 +77,7 @@ grep -q "^favorites=\['org.gnome.Settings.desktop','org.gnome.Console.desktop'\]
 grep -q '^HandlePowerKey=ignore$' "$rootfs/etc/systemd/logind.conf.d/athena.conf"
 test -x "$rootfs/usr/bin/chvt"
 grep -q '^ExecStartPost=+chvt 7$' "$rootfs/usr/lib/systemd/system/phosh.service"
+grep -q 'SUBSYSTEM=="backlight", KERNEL=="backlight-lcd0".*chgrp video.*chmod g+w' "$rootfs/etc/udev/rules.d/70-athena-drm.rules"
 test -f "$rootfs/usr/share/applications/athena-recovery.desktop"
 test -f "$rootfs/usr/share/applications/athena-poweroff.desktop"
 test -f "$rootfs/etc/triggerhappy/triggers.d/athena-volume.conf"
@@ -104,6 +105,7 @@ if dpkg-query --admindir="$rootfs/var/lib/dpkg" -W -f='${db:Status-Status}\n' fo
 fi
 dpkg-query --admindir="$rootfs/var/lib/dpkg" -W -f='${db:Status-Status}\n' kbd | grep -qx installed
 dpkg-query --admindir="$rootfs/var/lib/dpkg" -W -f='${db:Status-Status}\n' gnome-settings-daemon | grep -qx installed
+dpkg-query --admindir="$rootfs/var/lib/dpkg" -W -f='${db:Status-Status}\n' wlopm | grep -qx installed
 dpkg-query --admindir="$rootfs/var/lib/dpkg" -W -f='${db:Status-Status}\n' alsa-ucm-conf | grep -qx installed
 dpkg-query --admindir="$rootfs/var/lib/dpkg" -W -f='${db:Status-Status}\n' libglib2.0-bin | grep -qx installed
 dpkg-query --admindir="$rootfs/var/lib/dpkg" -W -f='${db:Status-Status}\n' polkitd | grep -qx installed

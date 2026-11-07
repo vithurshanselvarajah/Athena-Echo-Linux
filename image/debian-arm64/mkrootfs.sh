@@ -211,6 +211,8 @@ SUBSYSTEM=="drm", KERNEL=="card[0-9]*", GROUP="video", MODE="0660"
 
 SUBSYSTEM=="drm", KERNEL=="renderD[0-9]*", GROUP="render", MODE="0660"
 
+SUBSYSTEM=="backlight", KERNEL=="backlight-lcd0", ACTION=="add", RUN+="/usr/bin/chgrp video /sys%p/brightness", RUN+="/usr/bin/chmod g+w /sys%p/brightness"
+
 SUBSYSTEM=="input", KERNEL=="event*", ATTRS{name}=="generic ft5x06 (3e)", ENV{WL_OUTPUT}="DSI-1", ENV{LIBINPUT_CALIBRATION_MATRIX}="0.018601 -1.008491 0.999218 1.012344 0.001388 -0.007528"
 
 SUBSYSTEM=="input", KERNEL=="event*", ATTRS{name}=="mtk-pmic-keys", ENV{LIBINPUT_IGNORE_DEVICE}="1"

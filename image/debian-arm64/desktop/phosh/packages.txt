@@ -33,6 +33,7 @@ systemd-timesyncd
 triggerhappy
 udev
 wireless-regdb
+wlopm
 wpasupplicant
 xdg-utils
 
