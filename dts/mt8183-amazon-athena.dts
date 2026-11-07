@@ -296,7 +296,7 @@
 
 		compatible = "pwm-leds";
 
-		status = "disabled";
+		status = "okay";
 
 		led-mute {
 

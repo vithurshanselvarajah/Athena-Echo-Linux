@@ -426,6 +426,37 @@ DESKTOP
 
 chroot "$ROOT" dconf update
 
+cat >"$ROOT/usr/local/sbin/athena-micmute-led" <<'MICMUTELED'
+#!/bin/sh
+
+set -eu
+
+case "${1:-}" in
+	muted) value=1 ;;
+	active) value=0 ;;
+	*) exit 2 ;;
+esac
+
+for led in /sys/class/leds/*; do
+	[ -e "$led/brightness" ] || continue
+	function=$(cat "$led/function" 2>/dev/null || true)
+	name=${led##*/}
+	case "$function:$name" in
+		*micmute*|*mic-mute*|*mute*)
+			if [ "$value" -eq 1 ]; then
+				brightness=$(cat "$led/max_brightness")
+			else
+				brightness=0
+			fi
+			printf '%s\n' "$brightness" >"$led/brightness"
+			;;
+	esac
+done
+
+MICMUTELED
+
+chmod 755 "$ROOT/usr/local/sbin/athena-micmute-led"
+
 cat >"$ROOT/usr/local/sbin/athena-audio-init" <<'AUDIOINIT'
 #!/bin/sh
 
@@ -474,6 +505,8 @@ amixer -q -c 0 cset name='Digital CH2 Out Volume' 201
 amixer -q -c 0 cset name='Digital CH3 Out Volume' 201
 
 amixer -q -c 0 cset name='Digital CH4 Out Volume' 201
+
+/usr/local/sbin/athena-micmute-led active
 
 AUDIOINIT
 
@@ -553,7 +586,13 @@ cat >"$ROOT/usr/local/sbin/athena-micmute-key" <<'MICMUTE'
 
 set -eu
 
-exec /usr/sbin/runuser -u athena -- env XDG_RUNTIME_DIR=/run/user/1000 wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle
+/usr/sbin/runuser -u athena -- env XDG_RUNTIME_DIR=/run/user/1000 wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle
+
+if /usr/sbin/runuser -u athena -- env XDG_RUNTIME_DIR=/run/user/1000 wpctl get-volume @DEFAULT_AUDIO_SOURCE@ | grep -q '\[MUTED\]'; then
+	/usr/local/sbin/athena-micmute-led muted
+else
+	/usr/local/sbin/athena-micmute-led active
+fi
 
 MICMUTE
 

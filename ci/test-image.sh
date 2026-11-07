@@ -16,6 +16,8 @@ grep -q 'linux,code = <KEY_VOLUMEDOWN>' "$ROOT/dts/mt8183-amazon-athena.dts"
 grep -q 'linux,code = <KEY_MICMUTE>' "$ROOT/dts/mt8183-amazon-athena.dts"
 grep -q 'linux,code = <SW_CAMERA_LENS_COVER>' "$ROOT/dts/mt8183-amazon-athena.dts"
 grep -q 'brightness-levels = <0 1023>' "$ROOT/dts/mt8183-amazon-athena.dts"
+grep -A8 'pwm-leds {' "$ROOT/dts/mt8183-amazon-athena.dts" | grep -q 'status = "okay"'
+grep -q 'function = LED_FUNCTION_MICMUTE;' "$ROOT/dts/mt8183-amazon-athena.dts"
 
 label=$(blkid -p -s LABEL -o value "$SYSTEM")
 [ "$label" = athena-rootfs ] || {
@@ -44,6 +46,7 @@ for script in \
 	"$rootfs/usr/local/sbin/athena-root-grow" \
 	"$rootfs/usr/local/sbin/athena-power-action" \
 	"$rootfs/usr/local/sbin/athena-audio-init" \
+	"$rootfs/usr/local/sbin/athena-micmute-led" \
 	"$rootfs/usr/local/sbin/athena-volume-key" \
 	"$rootfs/usr/local/sbin/athena-micmute-key" \
 	"$rootfs/usr/local/sbin/athena-usb-console"; do
