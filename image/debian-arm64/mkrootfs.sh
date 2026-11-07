@@ -213,6 +213,8 @@ SUBSYSTEM=="drm", KERNEL=="renderD[0-9]*", GROUP="render", MODE="0660"
 
 SUBSYSTEM=="input", KERNEL=="event*", ATTRS{name}=="generic ft5x06 (3e)", ENV{WL_OUTPUT}="DSI-1", ENV{LIBINPUT_CALIBRATION_MATRIX}="0.018601 -1.008491 0.999218 1.012344 0.001388 -0.007528"
 
+SUBSYSTEM=="input", KERNEL=="event*", ATTRS{name}=="mtk-pmic-keys", ENV{LIBINPUT_IGNORE_DEVICE}="1"
+
 UDEV
 
 bash "$DESKTOP_DIR/configure.sh" "$ROOT"
@@ -508,11 +510,23 @@ set -eu
 
 case "${1:-}" in
 
-	up) delta=1 ;;
+	up) delta=5%+ ;;
 
-	down) delta=-1 ;;
+	down) delta=5%- ;;
 
 	*) echo 'usage: athena-volume-key up|down' >&2; exit 2 ;;
+
+esac
+
+if /usr/sbin/runuser -u athena -- env XDG_RUNTIME_DIR=/run/user/1000 wpctl set-volume --limit 1.0 @DEFAULT_AUDIO_SINK@ "$delta"; then
+	exit 0
+fi
+
+case "$1" in
+
+	up) delta=8 ;;
+
+	down) delta=-8 ;;
 
 esac
 
@@ -522,11 +536,11 @@ value=$(amixer -c 0 cget name="$control" | sed -n 's/^[[:space:]]*: values=\([-0
 
 case "$value" in ''|*[!0-9-]*) echo "could not read $control" >&2; exit 1 ;; esac
 
-if [ "$delta" -gt 0 ] && [ "$value" -ge 116 ]; then exit 0; fi
-
 value=$((value + delta))
 
 [ "$value" -ge 0 ] || value=0
+
+[ "$value" -le 116 ] || value=116
 
 amixer -q -c 0 cset name="$control" "$value,$value"
 
@@ -534,22 +548,31 @@ VOLUMEKEY
 
 chmod 755 "$ROOT/usr/local/sbin/athena-volume-key"
 
+cat >"$ROOT/usr/local/sbin/athena-micmute-key" <<'MICMUTE'
+#!/bin/sh
+
+set -eu
+
+exec /usr/sbin/runuser -u athena -- env XDG_RUNTIME_DIR=/run/user/1000 wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle
+
+MICMUTE
+
+chmod 755 "$ROOT/usr/local/sbin/athena-micmute-key"
+
 install -d -m 0755 "$ROOT/etc/sudoers.d"
 
 cat >"$ROOT/etc/sudoers.d/athena-volume-key" <<'SUDOERS'
 
-nobody ALL=(root) NOPASSWD: /usr/local/sbin/athena-volume-key up, /usr/local/sbin/athena-volume-key down
+nobody ALL=(root) NOPASSWD: /usr/local/sbin/athena-volume-key up, /usr/local/sbin/athena-volume-key down, /usr/local/sbin/athena-micmute-key
 
 SUDOERS
 
 chmod 440 "$ROOT/etc/sudoers.d/athena-volume-key"
 
 cat >"$ROOT/etc/triggerhappy/triggers.d/athena-volume.conf" <<'TRIGGERS'
-
 KEY_VOLUMEUP 1 /usr/bin/sudo -n /usr/local/sbin/athena-volume-key up
-
 KEY_VOLUMEDOWN 1 /usr/bin/sudo -n /usr/local/sbin/athena-volume-key down
-
+KEY_MICMUTE 1 /usr/bin/sudo -n /usr/local/sbin/athena-micmute-key
 TRIGGERS
 
 cat >"$ROOT/usr/local/sbin/athena-usb-console" <<'USB'

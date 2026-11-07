@@ -3,9 +3,16 @@
 set -euo pipefail
 
 ROOT=${1:?usage: configure.sh rootfs-directory}
+SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 
 install -d -m 0755 "$ROOT/etc/phosh" "$ROOT/etc/dconf/profile" \
-	"$ROOT/etc/dconf/db/local.d" "$ROOT/etc/systemd/system/phosh.service.d"
+	"$ROOT/etc/dconf/db/local.d" "$ROOT/etc/systemd/system/phosh.service.d" \
+	"$ROOT/usr/share/alsa/ucm2/conf.d/mt8183_athena"
+
+install -m 0644 "$SCRIPT_DIR/ucm/mt8183_athena.conf" \
+	"$ROOT/usr/share/alsa/ucm2/conf.d/mt8183_athena/mt8183_athena.conf"
+install -m 0644 "$SCRIPT_DIR/ucm/HiFi.conf" \
+	"$ROOT/usr/share/alsa/ucm2/conf.d/mt8183_athena/HiFi.conf"
 
 cat >"$ROOT/etc/phosh/phoc.ini" <<'PHOC'
 
@@ -55,6 +62,8 @@ favorites=['org.gnome.Settings.desktop','foot.desktop']
 sleep-inactive-ac-timeout=0
 
 sleep-inactive-battery-timeout=0
+
+power-button-action='nothing'
 
 [org/gnome/settings-daemon/peripherals/touchscreen]
 

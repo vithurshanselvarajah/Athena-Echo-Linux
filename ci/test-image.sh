@@ -45,6 +45,7 @@ for script in \
 	"$rootfs/usr/local/sbin/athena-power-action" \
 	"$rootfs/usr/local/sbin/athena-audio-init" \
 	"$rootfs/usr/local/sbin/athena-volume-key" \
+	"$rootfs/usr/local/sbin/athena-micmute-key" \
 	"$rootfs/usr/local/sbin/athena-usb-console"; do
 	test -x "$script"
 	test "$(head -n 1 "$script")" = '#!/bin/sh'
@@ -66,6 +67,7 @@ grep -q '^idle-delay=uint32 300$' "$rootfs/etc/dconf/db/local.d/20-athena"
 grep -q '^lock-enabled=false$' "$rootfs/etc/dconf/db/local.d/20-athena"
 grep -q '^require-unlock=false$' "$rootfs/etc/dconf/db/local.d/20-athena"
 grep -q '^orientation-lock=true$' "$rootfs/etc/dconf/db/local.d/20-athena"
+grep -q "^power-button-action='nothing'$" "$rootfs/etc/dconf/db/local.d/20-athena"
 grep -q '^app-filter-mode=\[\]$' "$rootfs/etc/dconf/db/local.d/20-athena"
 grep -q "^favorites=\['org.gnome.Settings.desktop','foot.desktop'\]$" "$rootfs/etc/dconf/db/local.d/20-athena"
 grep -q '^HandlePowerKey=ignore$' "$rootfs/etc/systemd/logind.conf.d/athena.conf"
@@ -74,6 +76,11 @@ grep -q '^ExecStartPost=+chvt 7$' "$rootfs/usr/lib/systemd/system/phosh.service"
 test -f "$rootfs/usr/share/applications/athena-recovery.desktop"
 test -f "$rootfs/usr/share/applications/athena-poweroff.desktop"
 test -f "$rootfs/etc/triggerhappy/triggers.d/athena-volume.conf"
+grep -q 'ATTRS{name}=="mtk-pmic-keys".*LIBINPUT_IGNORE_DEVICE="1"' "$rootfs/etc/udev/rules.d/70-athena-drm.rules"
+grep -q '^KEY_MICMUTE 1 /usr/bin/sudo -n /usr/local/sbin/athena-micmute-key$' "$rootfs/etc/triggerhappy/triggers.d/athena-volume.conf"
+test -f "$rootfs/usr/share/alsa/ucm2/conf.d/mt8183_athena/mt8183_athena.conf"
+test -f "$rootfs/usr/share/alsa/ucm2/conf.d/mt8183_athena/HiFi.conf"
+grep -q 'CapturePCM "hw:${CardId},2"' "$rootfs/usr/share/alsa/ucm2/conf.d/mt8183_athena/HiFi.conf"
 grep -qx 'athena ALL=(ALL:ALL) NOPASSWD: ALL' "$rootfs/etc/sudoers.d/athena-admin"
 grep -q 'PARTLABEL=misc' "$rootfs/usr/local/sbin/athena-power-action"
 test -x "$rootfs/usr/bin/gsettings"
@@ -87,6 +94,7 @@ fi
 dpkg-query --admindir="$rootfs/var/lib/dpkg" -W -f='${db:Status-Status}\n' squeekboard | grep -qx installed
 dpkg-query --admindir="$rootfs/var/lib/dpkg" -W -f='${db:Status-Status}\n' kbd | grep -qx installed
 dpkg-query --admindir="$rootfs/var/lib/dpkg" -W -f='${db:Status-Status}\n' gnome-settings-daemon | grep -qx installed
+dpkg-query --admindir="$rootfs/var/lib/dpkg" -W -f='${db:Status-Status}\n' alsa-ucm-conf | grep -qx installed
 dpkg-query --admindir="$rootfs/var/lib/dpkg" -W -f='${db:Status-Status}\n' libglib2.0-bin | grep -qx installed
 dpkg-query --admindir="$rootfs/var/lib/dpkg" -W -f='${db:Status-Status}\n' polkitd | grep -qx installed
 dpkg-query --admindir="$rootfs/var/lib/dpkg" -W -f='${db:Status-Status}\n' librsvg2-common | grep -qx installed

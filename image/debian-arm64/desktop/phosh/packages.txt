@@ -1,4 +1,5 @@
 alsa-utils
+alsa-ucm-conf
 bluez
 ca-certificates
 dbus
