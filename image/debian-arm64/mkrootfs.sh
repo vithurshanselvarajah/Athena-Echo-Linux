@@ -219,6 +219,10 @@ UDEV
 
 bash "$DESKTOP_DIR/configure.sh" "$ROOT"
 
+cat >"$ROOT/etc/machine-info" <<'MACHINEINFO'
+CHASSIS=tablet
+MACHINEINFO
+
 cat >"$ROOT/usr/local/sbin/athena-set-identity" <<'IDENTITY'
 #!/bin/sh
 

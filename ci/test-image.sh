@@ -55,6 +55,7 @@ for script in \
 	sh -n "$script"
 done
 test "$(awk -F: '$1 == "athena" { print $3 ":" $4 }' "$rootfs/etc/passwd")" = 1000:1000
+grep -qx 'CHASSIS=tablet' "$rootfs/etc/machine-info"
 grep -q '^root:![^:]*:' "$rootfs/etc/shadow"
 test -x "$rootfs/usr/local/sbin/athena-set-identity"
 test -x "$rootfs/usr/local/sbin/athena-root-grow"
