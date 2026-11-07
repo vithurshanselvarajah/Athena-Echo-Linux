@@ -22,7 +22,7 @@ xwayland=false
 
 [output:DSI-1]
 
-rotate=270
+rotate=90
 scale=1
 
 PHOC
