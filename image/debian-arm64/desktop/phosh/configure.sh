@@ -53,7 +53,7 @@ require-unlock=false
 
 [sm/puri/phosh]
 
-app-filter-mode=[]
+app-filter-mode=@as []
 
 favorites=['org.gnome.Settings.desktop','org.gnome.Console.desktop']
 
