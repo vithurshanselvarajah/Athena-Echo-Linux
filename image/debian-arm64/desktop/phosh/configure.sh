@@ -55,7 +55,7 @@ require-unlock=false
 
 app-filter-mode=[]
 
-favorites=['org.gnome.Settings.desktop','foot.desktop']
+favorites=['org.gnome.Settings.desktop','org.gnome.Console.desktop']
 
 [org/gnome/settings-daemon/plugins/power]
 

@@ -73,7 +73,7 @@ grep -q '^require-unlock=false$' "$rootfs/etc/dconf/db/local.d/20-athena"
 grep -q '^orientation-lock=true$' "$rootfs/etc/dconf/db/local.d/20-athena"
 grep -q "^power-button-action='nothing'$" "$rootfs/etc/dconf/db/local.d/20-athena"
 grep -q '^app-filter-mode=\[\]$' "$rootfs/etc/dconf/db/local.d/20-athena"
-grep -q "^favorites=\['org.gnome.Settings.desktop','foot.desktop'\]$" "$rootfs/etc/dconf/db/local.d/20-athena"
+grep -q "^favorites=\['org.gnome.Settings.desktop','org.gnome.Console.desktop'\]$" "$rootfs/etc/dconf/db/local.d/20-athena"
 grep -q '^HandlePowerKey=ignore$' "$rootfs/etc/systemd/logind.conf.d/athena.conf"
 test -x "$rootfs/usr/bin/chvt"
 grep -q '^ExecStartPost=+chvt 7$' "$rootfs/usr/lib/systemd/system/phosh.service"
@@ -96,6 +96,10 @@ if dpkg-query --admindir="$rootfs/var/lib/dpkg" -W -f='${db:Status-Status}\n' ph
 	exit 1
 fi
 dpkg-query --admindir="$rootfs/var/lib/dpkg" -W -f='${db:Status-Status}\n' squeekboard | grep -qx installed
+dpkg-query --admindir="$rootfs/var/lib/dpkg" -W -f='${db:Status-Status}\n' gnome-console | grep -qx installed
+if dpkg-query --admindir="$rootfs/var/lib/dpkg" -W -f='${db:Status-Status}\n' foot 2>/dev/null | grep -qx installed; then
+	exit 1
+fi
 dpkg-query --admindir="$rootfs/var/lib/dpkg" -W -f='${db:Status-Status}\n' kbd | grep -qx installed
 dpkg-query --admindir="$rootfs/var/lib/dpkg" -W -f='${db:Status-Status}\n' gnome-settings-daemon | grep -qx installed
 dpkg-query --admindir="$rootfs/var/lib/dpkg" -W -f='${db:Status-Status}\n' alsa-ucm-conf | grep -qx installed
