@@ -15,7 +15,7 @@ xwayland=false
 
 [output:DSI-1]
 
-rotate=90
+rotate=270
 scale=1
 
 PHOC
@@ -55,6 +55,10 @@ favorites=['org.gnome.Settings.desktop','foot.desktop']
 sleep-inactive-ac-timeout=0
 
 sleep-inactive-battery-timeout=0
+
+[org/gnome/settings-daemon/peripherals/touchscreen]
+
+orientation-lock=true
 
 DCONF
 
