@@ -41,6 +41,8 @@ python3 install-athena.py --boot build/boot-athena.img --image build/athena/syst
 
 Type `INSTALL` when prompted. The installer backs up the current boot and system partitions under `backups/<device-id>/`, writes both images and verifies them. Keep the backups until the new system is confirmed working.
 
+The installer uses the existing `boot` (p20) and `system` (p21) partitions by name and checks their actual capacities before writing. It works with the original layout, where cache and userdata remain separate, and with a layout where those partitions have been merged into a larger system partition. It does not repartition the device or write any partitions other than boot and system; the system image must fit the existing system partition.
+
 ## Device use
 
 The desktop account is `athena` (UID 1000). It opens a local serial console automatically. At boot, the hostname becomes `athena-<serial-number>` using the device serial passed by the bootloader. That hostname is visible to the local network.

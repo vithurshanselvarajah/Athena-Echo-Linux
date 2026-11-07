@@ -243,6 +243,58 @@ def check_empty_slot(data, what):
     return img
 
 
+def extract_embedded_amp_tuning(data, what):
+
+    count = data.count(SLOT_MAGIC)
+
+    if count == 0:
+        return None
+
+    if count != 1:
+        raise InstallError(f"{what}: expected exactly one speaker tuning slot")
+
+    img = BootImage(data, what)
+
+    if data[576:608] != img.image_id():
+        raise InstallError(f"{what}: boot header SHA1 id does not match its contents")
+
+    at = data.find(SLOT_MAGIC)
+
+    if at + SLOT_SIZE > len(data) or not (
+        img.kernel_at <= at and at + SLOT_SIZE <= img.second_at + img.second_size
+    ):
+        raise InstallError(f"{what}: speaker tuning slot is outside the boot image payload")
+
+    size = struct.unpack_from("<I", data, at + 8)[0]
+
+    if size > SLOT_MAX or size % 2:
+        raise InstallError(f"{what}: speaker tuning slot has invalid data length {size}")
+
+    digest = data[at + 12 : at + SLOT_HEAD]
+
+    if any(data[at + SLOT_HEAD + size : at + SLOT_SIZE]):
+        raise InstallError(f"{what}: speaker tuning slot has non-zero padding")
+
+    if size == 0:
+        if any(digest):
+            raise InstallError(f"{what}: empty speaker tuning slot has a non-zero SHA-256")
+
+        return None
+
+    table = data[at + SLOT_HEAD : at + SLOT_HEAD + size]
+
+    if hashlib.sha256(table).digest() != digest:
+        raise InstallError(f"{what}: speaker tuning slot SHA-256 does not match its data")
+
+    known = KNOWN_AMP_TABLES.get(sha256(table))
+
+    description = f" ({known[1]})" if known else ""
+
+    print(f"Reusing speaker tuning from {what}: {size} bytes{description}")
+
+    return table
+
+
 def _strings(blob):
 
     return [x.decode("ascii", "replace") for x in blob.split(b"\0") if x]
@@ -678,6 +730,19 @@ def partition_info(serial, mmc, number):
     return fields[0], int(fields[1]) * 512
 
 
+def validate_install_targets(
+    boot_name, boot_capacity, system_name, system_capacity, boot_size, image_size
+):
+
+    if (boot_name, system_name) != ("boot", "system"):
+        raise InstallError(
+            f"unexpected layout: p20={boot_name!r}, p21={system_name!r}; nothing written"
+        )
+
+    if boot_size > boot_capacity or image_size > system_capacity:
+        raise InstallError("one or both images exceed the target partition size")
+
+
 def ensure_athena(serial):
 
     props = " ".join(
@@ -759,6 +824,28 @@ def backup(serial, dev, size, path):
 
     with open(path + ".sha256", "w") as f:
         f.write(f"{got}  {os.path.basename(path)}\n")
+
+
+def archive_stale_backup(path):
+
+    index = 1
+
+    while True:
+        archived = f"{path}.stale-{index}"
+
+        if not os.path.exists(archived) and not os.path.exists(archived + ".sha256"):
+            break
+
+        index += 1
+
+    os.replace(path, archived)
+
+    sidecar = path + ".sha256"
+
+    if os.path.exists(sidecar):
+        os.replace(sidecar, archived + ".sha256")
+
+    return archived
 
 
 def write_image(serial, mmc, number, name, image):
@@ -970,16 +1057,16 @@ def main():
 
     system_name, system_capacity = partition_info(serial, mmc, 21)
 
-    if (boot_name, system_name) != ("boot", "system"):
-        raise InstallError(
-            f"unexpected layout: p20={boot_name!r}, p21={system_name!r}; nothing written"
-        )
+    validate_install_targets(
+        boot_name,
+        boot_capacity,
+        system_name,
+        system_capacity,
+        os.path.getsize(a.boot),
+        os.path.getsize(a.image),
+    )
 
-    if (
-        os.path.getsize(a.boot) > boot_capacity
-        or os.path.getsize(a.image) > system_capacity
-    ):
-        raise InstallError("one or both images exceed the target partition size")
+    current_boot = read_partition(serial, f"/dev/block/{mmc}p20", boot_capacity)
 
     print(
         f"Athena {serial} in TWRP; targets: boot={mmc}p20 ({boot_capacity >> 20} MiB), "
@@ -990,18 +1077,23 @@ def main():
 
     print(f"Debian image: {a.image} SHA256 {local_hash(a.image)}")
 
+    live_compatible = _strings(
+        remote_file(serial, "cat /proc/device-tree/compatible 2>/dev/null")
+    )
+
+    table = (
+        None
+        if a.stock_boot
+        else extract_embedded_amp_tuning(current_boot, "current boot partition")
+    )
+
     if a.dry_run:
-        stock_boot = (
-            open(a.stock_boot, "rb").read()
-            if a.stock_boot
-            else read_partition(serial, f"/dev/block/{mmc}p20", boot_capacity)
-        )
+        if table is None:
+            stock_boot = (
+                open(a.stock_boot, "rb").read() if a.stock_boot else current_boot
+            )
 
-        live_compatible = _strings(
-            remote_file(serial, "cat /proc/device-tree/compatible 2>/dev/null")
-        )
-
-        extract_amp_tuning(stock_boot, live_compatible)
+            table = extract_amp_tuning(stock_boot, live_compatible)
 
         print("Dry run complete; no device data was changed.")
 
@@ -1025,10 +1117,15 @@ def main():
     ):
         path = os.path.join(backup_dir, f"p{number}-{name}.img")
 
+        if os.path.exists(path) and os.path.getsize(path) != size:
+            archived = archive_stale_backup(path)
+
+            print(f"Archived size-mismatched backup as: {archived}")
+
         if os.path.exists(path):
             sidecar = path + ".sha256"
 
-            if not os.path.exists(sidecar) or os.path.getsize(path) != size:
+            if not os.path.exists(sidecar):
                 raise InstallError(
                     f"existing backup {path} is incomplete; move it aside before continuing"
                 )
@@ -1047,16 +1144,13 @@ def main():
 
             backup(serial, f"/dev/block/{mmc}p{number}", size, path)
 
-    stock_path = a.stock_boot or os.path.join(backup_dir, "p20-boot.img")
+    if table is None:
+        stock_path = a.stock_boot or os.path.join(backup_dir, "p20-boot.img")
 
-    with open(stock_path, "rb") as f:
-        stock_boot = f.read()
+        with open(stock_path, "rb") as f:
+            stock_boot = f.read()
 
-    live_compatible = _strings(
-        remote_file(serial, "cat /proc/device-tree/compatible 2>/dev/null")
-    )
-
-    table = extract_amp_tuning(stock_boot, live_compatible)
+        table = extract_amp_tuning(stock_boot, live_compatible)
 
     tuned_boot = fill_amp_slot(boot, table)
 
