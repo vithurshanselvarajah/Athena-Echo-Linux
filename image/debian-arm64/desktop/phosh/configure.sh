@@ -16,6 +16,7 @@ xwayland=false
 [output:DSI-1]
 
 rotate=90
+scale=1
 
 PHOC
 
@@ -42,6 +43,12 @@ lock-enabled=false
 [sm/puri/phosh/lockscreen]
 
 require-unlock=false
+
+[sm/puri/phosh]
+
+app-filter-mode=[]
+
+favorites=['org.gnome.Settings.desktop','foot.desktop']
 
 [org/gnome/settings-daemon/plugins/power]
 

@@ -60,8 +60,13 @@ test -f "$rootfs/etc/systemd/system/athena-root-grow.service"
 grep -q 'findfs LABEL=athena-rootfs' "$rootfs/usr/local/sbin/athena-root-grow"
 grep -q 'resize2fs' "$rootfs/usr/local/sbin/athena-root-grow"
 test -f "$rootfs/etc/phosh/phoc.ini"
-grep -q '^rotate=270$' "$rootfs/etc/phosh/phoc.ini"
+grep -q '^rotate=90$' "$rootfs/etc/phosh/phoc.ini"
+grep -q '^scale=1$' "$rootfs/etc/phosh/phoc.ini"
 grep -q '^idle-delay=uint32 300$' "$rootfs/etc/dconf/db/local.d/20-athena"
+grep -q '^lock-enabled=false$' "$rootfs/etc/dconf/db/local.d/20-athena"
+grep -q '^require-unlock=false$' "$rootfs/etc/dconf/db/local.d/20-athena"
+grep -q '^app-filter-mode=\[\]$' "$rootfs/etc/dconf/db/local.d/20-athena"
+grep -q "^favorites=\['org.gnome.Settings.desktop','foot.desktop'\]$" "$rootfs/etc/dconf/db/local.d/20-athena"
 grep -q '^HandlePowerKey=ignore$' "$rootfs/etc/systemd/logind.conf.d/athena.conf"
 test -x "$rootfs/usr/bin/chvt"
 grep -q '^ExecStartPost=+chvt 7$' "$rootfs/usr/lib/systemd/system/phosh.service"
@@ -74,12 +79,16 @@ test -x "$rootfs/usr/bin/gsettings"
 test -e "$rootfs/usr/share/applications/sm.puri.OSK0.desktop"
 
 dpkg-query --admindir="$rootfs/var/lib/dpkg" -W -f='${db:Status-Status}\n' phosh | grep -qx installed
-dpkg-query --admindir="$rootfs/var/lib/dpkg" -W -f='${db:Status-Status}\n' phosh-mobile-settings | grep -qx installed
+dpkg-query --admindir="$rootfs/var/lib/dpkg" -W -f='${db:Status-Status}\n' gnome-control-center | grep -qx installed
+if dpkg-query --admindir="$rootfs/var/lib/dpkg" -W -f='${db:Status-Status}\n' phosh-mobile-settings 2>/dev/null | grep -qx installed; then
+	exit 1
+fi
 dpkg-query --admindir="$rootfs/var/lib/dpkg" -W -f='${db:Status-Status}\n' squeekboard | grep -qx installed
 dpkg-query --admindir="$rootfs/var/lib/dpkg" -W -f='${db:Status-Status}\n' kbd | grep -qx installed
 dpkg-query --admindir="$rootfs/var/lib/dpkg" -W -f='${db:Status-Status}\n' gnome-settings-daemon | grep -qx installed
 dpkg-query --admindir="$rootfs/var/lib/dpkg" -W -f='${db:Status-Status}\n' libglib2.0-bin | grep -qx installed
 dpkg-query --admindir="$rootfs/var/lib/dpkg" -W -f='${db:Status-Status}\n' polkitd | grep -qx installed
+dpkg-query --admindir="$rootfs/var/lib/dpkg" -W -f='${db:Status-Status}\n' librsvg2-common | grep -qx installed
 dpkg-query --admindir="$rootfs/var/lib/dpkg" -W -f='${Architecture}\n' libc6 | grep -qx arm64
 
 if [ -n "$TRIVY_IMAGE" ]; then

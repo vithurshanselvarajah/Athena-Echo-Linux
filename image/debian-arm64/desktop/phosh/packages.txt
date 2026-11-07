@@ -4,6 +4,7 @@ ca-certificates
 dbus
 e2fsprogs
 foot
+gnome-control-center
 gnome-session-bin
 gnome-session-common
 gnome-settings-daemon
@@ -20,7 +21,6 @@ librsvg2-common
 libwebkit2gtk-4.1-0
 network-manager
 phosh
-phosh-mobile-settings
 phosh-mobile-tweaks
 polkitd
 seatd
