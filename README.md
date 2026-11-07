@@ -74,3 +74,7 @@ Pull requests run shell and Python checks, boot-image packer unit tests, reposit
 Pushing a version tag such as `v1.0.0` runs the same build and scan gates, then publishes the boot image, system image, matching kernel source archive, kernel configuration, checksums, vulnerability report and SBOM as a GitHub release. A tag build fails when the image has fixable High or Critical package vulnerabilities; findings without a Debian fix remain in the attached report. The release job also creates signed provenance attestations. Enable immutable releases in the repository settings to prevent published release assets from being replaced. CI validates image contents but cannot test physical screen, touch, camera, audio or recovery behavior; those still need an Echo device.
 
 The source scan suppresses Trivy rule `DS-0002` for the ephemeral build and scanner containers, which need root to perform their build or scan jobs. These are not deployed to the Echo; the installed system runs its desktop account as an unprivileged user.
+
+## Licensing and attribution
+
+Project-authored code is MIT-licensed, subject to file-level and upstream licenses for kernel and third-party material. See [LICENSES/README.md](LICENSES/README.md) for the license scopes and attributions.
