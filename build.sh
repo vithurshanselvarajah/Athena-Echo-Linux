@@ -14,11 +14,11 @@ OUT=${OUT:-$WORK/out}
 
 JOBS=${JOBS:-$(nproc)}
 
-KVER=6.18.62
+KVER=6.18.63
 
 KURL=https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-$KVER.tar.xz
 
-KSHA256=490a7aedf1b355c565d3a6c05333ccccb5da82064eca46b590448a7099d7d651
+KSHA256=81764a545072d160748beff4d9de2e7d95aa9f16e8261110288f067a2cc61d71
 
 FW_TAG=20260916
 
