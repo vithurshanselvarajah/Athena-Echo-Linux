@@ -25,7 +25,7 @@ jobs:
       - name: Make the vulnerability database cache writable
         run: mkdir -p .qualor/trivy && chmod 0777 .qualor/trivy
       # Install dependencies (JS/TS, Go) or build (Java) here, before the scan.
-      - uses: qualor-dev/scan-action@v0.15
+      - uses: qualor-dev/scan-action@v0.16
         with:
           server-url: https://qualor.vithuselservices.co.uk
           project-key: vithurshanselvarajah/Athena-Echo-Linux
